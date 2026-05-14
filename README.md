@@ -1,8 +1,9 @@
 # Skills
 
 ## Description
-- grill-me
-Reach a shared understanding with the agent, like /plan. (Copy of mattpocock/skills).
+- **grill-me** — Reach a shared understanding with the agent, like /plan. (Copy of mattpocock/skills).
+- **summarise** — Condenses a response to bullet-point TL;DR only. One-shot, no persistence.
+- **discuss** — Discussion-only mode. Critically examines an idea — challenges assumptions, surfaces trade-offs, proposes alternatives. No implementation.
 
 ## Installation
 ### Copilot CLI
