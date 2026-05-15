@@ -5,6 +5,8 @@
 - **summarise** — Condenses a response to bullet-point TL;DR only. One-shot, no persistence.
 - **discuss** — Discussion-only mode. Critically examines an idea — challenges assumptions, surfaces trade-offs, proposes alternatives. No implementation.
 - **troubleshoot** — Systematic narrowing-down mode for issues the AI cannot directly observe. Guides information gathering step-by-step until root cause is certain before suggesting a fix.
+- **learn [topic]** — Generates a structured learning syllabus for a new topic and saves it to `learn-[topic].md`. Run once to set up.
+- **study [topic]** — Runs an interactive study session from a `/learn` plan. Discussion-based learning, not quizzes. Tracks progress in the plan file.
 
 ## Installation
 ### Copilot CLI
