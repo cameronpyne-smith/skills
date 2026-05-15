@@ -19,10 +19,15 @@ Create a structured learning plan for: **$ARGUMENTS**
 
 2. **Build the syllabus** — based on their level, create a learning plan with:
    - A clear goal: what the user will be able to do/understand at the end
-   - 4–8 modules in logical order, each with:
+   - Modules grouped into logical, self-contained topics. Rules for structuring:
+     - Each module should cover one cohesive idea — something you could explain in a single sitting
+     - If a topic contains too many distinct concepts, split it into sub-modules rather than cramming them together
+     - If two concepts are tightly coupled and make no sense apart, keep them together
+     - Let the topic's natural structure dictate the number of modules — don't pad or compress to hit a number
+   - Each module should have:
      - A title and one-sentence description
-     - 2–3 key concepts covered
-     - 1–2 specific resources (articles, docs, videos, books — real, linkable ones)
+     - The key concepts covered (as many as naturally belong, no fixed count)
+     - Specific resources (articles, docs, videos, books — real, linkable ones) appropriate to the depth of the module
      - Estimated effort (e.g. "~30 mins reading")
    - A "Prerequisites" section if anything needs to be in place first
 
@@ -45,7 +50,7 @@ Create a structured learning plan for: **$ARGUMENTS**
 ## Module 1: [title]
 [description]
 
-**Concepts:** concept1, concept2, concept3
+**Concepts:** [concepts that belong to this module]
 
 **Resources:**
 - [Resource name](url) — [one line on what it covers]
