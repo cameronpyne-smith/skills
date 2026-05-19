@@ -58,7 +58,12 @@ function prompt(question) {
     process.exit(1);
   }
 
-  const endpoint = manifest.endpoint || manifest.href;
+  // Support flat BSP format and nested OAP format
+  let endpoint = manifest.endpoint || manifest.href;
+  if (!endpoint && manifest.oap?.services) {
+    const services = Object.values(manifest.oap.services);
+    endpoint = services.find(s => s.rest?.endpoint)?.rest?.endpoint;
+  }
   if (!endpoint) {
     console.error("Manifest does not contain an 'endpoint' or 'href' field.");
     process.exit(1);
@@ -76,7 +81,8 @@ function prompt(question) {
     TenantId = manifest.tenantId || await prompt(`Enter tenant ID for ${Name}: `);
   }
 
-  const authHeaders = manifest.auth?.scheme === 'bearer'
+  const authScheme = manifest.oap?.authentication?.type === 'bearer' || manifest.auth?.scheme === 'bearer';
+  const authHeaders = authScheme
     ? { Authorization: 'Bearer {{apiKey}}', 'X-Tenant-Id': '{{tenantId}}' }
     : { 'X-Api-Key': '{{apiKey}}', 'X-Tenant-Id': '{{tenantId}}' };
 
