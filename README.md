@@ -3,7 +3,7 @@
 ## Installation
 ### Copilot CLI
 
-Run ```https://github.com/cameronpyne-smith/skills``` inside a project for project-only use, or for global use run the command outside a repo directory in `{directoryPath}` of your choice and run ```/skills add {directoryPath}``` inside copilot CLI.
+Run ```npx skills add cameronpyne-smith/skills``` inside a project for project-only use, or for global use run the command outside a repo directory in `{directoryPath}` of your choice and run ```/skills add {directoryPath}``` inside copilot CLI.
 
 ### Claude Code
 Copy the skill folder into `~/.claude/skills/<skill-name>/SKILL.md` for personal use across all projects, or `.claude/skills/<skill-name>/SKILL.md` inside a project for project-only use.
