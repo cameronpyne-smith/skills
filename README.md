@@ -19,5 +19,4 @@ Copy the skill folder into `~/.claude/skills/<skill-name>/SKILL.md` for personal
 - **study [topic]** — Runs an interactive study session from a `/learn` plan. Discussion-based learning, not quizzes. Tracks progress in the plan file.
 - **bsp [server] <request>** — Interact with any BSP/OAP-compliant service. Queries, commands, and server management. Run `/bsp add-server <url>` to configure a server.
 - **save-tokens** — Silent execution mode. Does the work, outputs nothing. For quick tasks you verify yourself.
-
-
+- **pr-comments** — Works through the open comments on the current branch's PR. Fixes valid ones, rebuts invalid ones with evidence, and asks about the rest; presents a report for approval before it commits, pushes, replies, and resolves. Depends on **grill-me**.
