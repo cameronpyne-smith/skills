@@ -20,3 +20,4 @@ Copy the skill folder into `~/.claude/skills/<skill-name>/SKILL.md` for personal
 - **bsp [server] <request>** — Interact with any BSP/OAP-compliant service. Queries, commands, and server management. Run `/bsp add-server <url>` to configure a server.
 - **save-tokens** — Silent execution mode. Does the work, outputs nothing. For quick tasks you verify yourself.
 - **pr-comments** — Works through the open comments on the current branch's PR. Fixes valid ones, rebuts invalid ones with evidence, and asks about the rest; presents a report for approval before it commits, pushes, replies, and resolves. Depends on **grill-me**.
+- **pr [branch-name]** — Ships the working tree as a PR: branches off latest main, commits everything, pushes, creates the PR, then waits for Copilot's automatic review and chains into **pr-comments** to action it. Re-run safe. Depends on **pr-comments**.
