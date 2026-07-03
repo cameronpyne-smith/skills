@@ -62,7 +62,7 @@ Copilot reviews the PR automatically; there is no completion event, so poll.
    ```
    gh api repos/OWNER/REPO/pulls/NUMBER/reviews --jq '.[] | select(.user.login == "copilot-pull-request-reviewer[bot]") | {state, submitted_at}'
    ```
-   (If the login differs, match any review whose author is a Bot with "copilot" in the login.) On a re-run, only count reviews submitted **after this run's push** — earlier reviews were for old code.
+   (If the login differs, match any review whose author is a Bot with "copilot" in the login.) On a re-run, only count reviews submitted **after this run's push** — earlier reviews were for old code. If this run pushed nothing (resume case), accept the **latest completed review of the current head commit** instead.
 2. Outcomes:
    - **Review found, with comments** → invoke the **`pr-comments` skill** on this PR. Its own rules take over from here — including its approval gate before anything irreversible.
    - **Review found, zero comments** → report "Copilot reviewed — no comments" with the PR URL, and stop.
@@ -75,4 +75,4 @@ Copilot reviews the PR automatically; there is no completion event, so poll.
 - Branch name comes from the argument, or the current branch when omitted (never main); base is always `origin/main`.
 - Never `git add -A`/`-am`; never stash, force-push, or reset to recover from a git failure — stop and report instead.
 - Re-runs must be safe: reuse the branch, skip the commit if clean, never duplicate the PR, update the PR body when new commits were pushed.
-- End every run with the PR URL and a one-line status (created / updated / reviewed clean / chained to pr-comments / timed out).
+- End every run with the PR URL and a one-line status (created / updated / reviewed clean / chained to pr-comments / timed out), and open the PR in the browser: `gh pr view NUMBER --web` (once per run, at the end).
