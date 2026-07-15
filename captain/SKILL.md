@@ -88,6 +88,7 @@ On a worker's turn-end notification (or when the user asks about a ticket):
 2. Carry the user's response back via SendMessage to the recorded agent. Gate responses pass through unedited — the user may veto or adjust individual items, per pr-comments.
 3. **Dead thread** (SendMessage fails / other session): offer re-spawn; on the user's word, spawn a fresh worker with the same three-file prompt — worker.md Phase 0 reconstructs progress from the worktree, the PR, and `.state`.
 4. User-initiated instructions ("tell 10241 …") → SendMessage verbatim.
+5. Direct thread hop-in (left-arrow panel) only works for a worker that is *currently running* in a foreground session — a worker that ended its turn to gate, or any worker of a background captain session, is not listed there. Interactive sessions with a worker (e.g. grill-me) therefore run through the captain relay by default: worker question → relay to user → user answer → SendMessage back, one round per turn.
 
 ## Fleet status (bare /captain, after housekeeping)
 
@@ -103,4 +104,5 @@ One table: `id | phase | age | repo | branch | PR | worker (this session / orpha
 - Everything posts as the authenticated user on team-visible surfaces. The fleet's only ungated ticket/PR writes are: assign on spawn, the PR itself, and the worker's one evidence comment.
 - Never merge; never force-push. A git failure stops that ticket and gets reported — never stash or reset around it (Phase S's reuse-and-reset is the sole exception).
 - Never double-spawn; never prune anything not proven safe; `_archive` is never auto-deleted.
+- Never `cd` any of your shells into a worker's worktree — inspect with absolute paths and `git -C <wt>`. A shell cwd inside a worktree holds a directory handle, and after compaction it can become the session's own pinned working directory — either blocks `worktree remove` with a lock that outlives cd-ing back out. If a prune leaves only an empty locked dir, report it and leave it for a later pass from another session; never force.
 - Keep every command portable (bash + git + gh): this must run identically from Windows or WSL sessions.

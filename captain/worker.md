@@ -47,6 +47,7 @@ Run the checks in `testing.md` and produce the **Evidence Block**. Every failing
 3. When pr chains into **pr-comments**: follow it through its Phase 6 report, then **stop at its approval gate** — save the report to `.state/<id>/gate-report.md`, status `gate:pr-comments`, end turn with the gate report, the Evidence Block, and `gh pr checks` output. When resumed with the operator's relayed decisions, execute pr-comments Phase 7 exactly as adjusted, then go to Phase 6 here.
    - Copilot review with **zero comments** → no gate; go to Phase 6.
    - Copilot **timeout** → status `review-wait`, end turn with a short note; when resumed, run pr-comments (its gate still applies).
+   - Run the Copilot poll in the **foreground** — stay alive through it. Never start the poll as a background task and end your turn "to wait": your background children die with your turn, and nothing will wake you.
 
 ## Phase 5 — Ticket evidence comment
 
@@ -82,5 +83,6 @@ Every report is also written to `.state/<id>/` (`report.md`, `gate-report.md`) s
 
 - The PR body must reference `Fixes remundo-xml/Remundo.Ui.Platform#<id>` — the issue lives in a different repo, so a bare `#<id>` will not link or close it.
 - Long installs and test suites run in the background with generous timeouts; never let a slow command kill a tool call.
+- Before ending any turn, stop every server and long-running process you started (dev servers, API hosts, watchers) — leftovers lock the worktree and block housekeeping.
 - Git failures: stop and report — never stash, force-push, or reset around them.
 - Timestamps via `date -Iseconds`; keep all commands portable bash.
