@@ -34,7 +34,7 @@ A ticket that genuinely spans repos still spawns single-repo: the worker bails a
 
 ## Invocations
 
-- `/captain <id> [<id>…] [--model fable|opus|sonnet|haiku] [repo hint]` — work tickets. Model omitted → workers inherit the session model. A repo hint ("api", "backoffice") overrides routing.
+- `/captain <id> [<id>…] [--model fable|opus|sonnet|haiku] [repo hint]` — work tickets. Model omitted → workers run on **sonnet**. A repo hint ("api", "backoffice") overrides routing.
 - `/captain` — housekeeping + fleet status only.
 - Conversational forms map onto the flows below: "resume 10241", "re-spawn 10241 on sonnet", "tell 10241's worker to also cover X".
 
@@ -69,7 +69,7 @@ The design conversation happens here, on the main thread, where interaction is c
    - exists with an open PR → leave it; the pr skill reconciles on re-run
    - exists dirty with no open PR → stop this ticket and report; never clobber
 3. Write `brief.md` (template below) and `status.md` (`phase: spawned`).
-4. Spawn a background worker via the Agent tool (model per `--model`, else inherit), prompt — with all paths absolute:
+4. Spawn a background worker via the Agent tool (model per `--model`, else **sonnet**), prompt — with all paths absolute:
    > You are a ticket worker. Read and follow, in order: `<base>/worker.md` (your playbook), `<base>/testing.md` (evidence contract), `<base>/.state/<id>/brief.md` (your assignment). Explore and implement the solution. The brief's decisions resolve the known uncertainties — escalate only what you cannot reconcile with the code, or a material discovery the brief missed. Use TDD where appropriate. Do not write tests which simply restate the implementation — these provide zero confidence. End your turn only as worker.md prescribes.
 5. Record the worker's agent id/name in `status.md`. Multiple tickets → spawn each as its Phase Q closes; after the last spawn, show the fleet table.
 
@@ -81,7 +81,7 @@ issue: <url>  (remundo-xml/Remundo.Ui.Platform#<id>)
 repo: <org/repo> — clone <path>
 worktree: <path>
 branch: <id>-<slug>
-model: <inherit | name>
+model: <sonnet unless --model given>
 skill-base: <absolute path of this skill directory>
 routing: <one-line rationale>
 summary: <2–6 lines: what the ticket asks; key comments>
