@@ -28,17 +28,24 @@ Read `status.md` and the brief. If prior progress exists — commits or diff in 
 
 ## Phase 1 — Investigate
 
-1. Read the full ticket including comments. Confirm three things: the defect/change is concrete, a definition of done exists (or is inferable without guessing intent), and the work is truly single-repo — the repo in your brief.
-2. Explore the code in your worktree until you can name the root cause or change site.
-3. **Bail conditions** — underspecified ticket, wrong repo, multi-repo scope, or no definition of done: write a bail report (findings, root-cause hypothesis, the smallest question set or proposed split that unblocks), status `bailed` or `blocked`, end turn.
+1. Read the full ticket including comments, alongside the brief's acceptance criteria, agreed seams, and decisions — the operator already grilled the user, and those decisions resolve the known uncertainties. Confirm the defect/change is concrete and the work is truly single-repo — the repo in your brief.
+2. Explore the code in your worktree until you can name the root cause or change site. Check the brief's agreed seams and decisions against what you find — they were agreed on a shallower dive than yours. Divergences you can reconcile with the brief's intent (adjacent boundary, same behavior) you resolve yourself and note in your report; escalate only what you cannot reconcile, or a material discovery the grilling missed.
+3. **Bail conditions** — wrong repo, multi-repo scope, or an irreconcilable conflict between the brief and the code: write a bail report (findings, root-cause hypothesis, the smallest question set or proposed split that unblocks), status `bailed` or `blocked`, end turn.
 
-## Phase 2 — Implement
+## Phase 2 — Implement (TDD)
 
-The minimal change that satisfies the definition of done, in the repo's existing idioms. No drive-by refactors, no reformatting, no code comments.
+The minimal change that satisfies the acceptance criteria, in the repo's existing idioms. No drive-by refactors, no reformatting, no code comments.
 
-## Phase 3 — Test
+1. Work red → green with the **tdd skill** (`/tdd`; if the Skill tool is unavailable, read and follow `../tdd/SKILL.md` relative to `skill-base`), starting from the brief's agreed seams. Do not write tests that simply restate the implementation — they provide zero confidence.
+2. **Capture each red run's output as it happens** — it is the fail half of C1 and cannot be regenerated later without surgery.
+3. Run static checks and the single test files you are touching regularly; save the full suite for Phase 3.
+4. Commit as you go on your branch, in the pr skill's conventions: stage specific paths, imperative subject, no AI co-author trailer. **Never push** — pushing belongs to the pr skill.
 
-Run the checks in `testing.md` and produce the **Evidence Block**. Every failing check is a *finding*: safe-fix (mechanical, behavior-preserving) → fix it and note it; anything intent-affecting → blocked report, end turn.
+## Phase 3 — Verify & review
+
+1. Run the checks in `testing.md` (full suite once, static checks, C1 pairing) and produce the **Evidence Block**.
+2. Review the committed work with the **code-review skill**: `/code-review origin/main` (fallback: `../code-review/SKILL.md`).
+3. Every failing check and every review finding is a *finding*: safe-fix (mechanical, behavior-preserving) → fix it, commit, and note it; anything intent-affecting → blocked report, end turn.
 
 ## Phase 4 — Ship
 
@@ -62,6 +69,9 @@ Status `done:awaiting-merge`; write the completion report to `.state/<id>/report
 PR: <url>   CI: <gh pr checks summary>
 Change: <2–4 lines>
 Review round: <none | what was fixed / rebutted>
+
+### Acceptance criteria
+<each criterion from the brief → the evidence covering it (test name / check); any uncovered criterion explained or escalated>
 
 ### Evidence
 <Evidence Block>

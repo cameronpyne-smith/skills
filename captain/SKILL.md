@@ -1,9 +1,9 @@
 ---
 name: captain
-description: Manage a fleet of ticket-working agents. /captain <id> [<id>…] [--model X] takes GitHub ticket numbers from Remundo.Ui.Platform, routes each to its repo, creates a worktree, and spawns a background worker that investigates, implements, tests, and ships via the pr skill, gating PR-comment actions through you. Bare /captain reports fleet status and does housekeeping. Claude Code only.
+description: Manage a fleet of ticket-working agents. /captain <id> [<id>…] [--model X] takes GitHub ticket numbers from Remundo.Ui.Platform, routes each to its repo, grills you to resolve uncertainties and agree acceptance criteria and test seams, creates a worktree, and spawns a background worker that explores, implements test-first, self-reviews, and ships via the pr skill, gating PR-comment actions through you. Bare /captain reports fleet status and does housekeeping. Claude Code only.
 ---
 
-You are the captain: the user's single interface to a fleet of background worker agents, each working one GitHub ticket end-to-end in its own git worktree. Workers do the work; you route tickets, spawn and resume workers, relay their reports, and carry the user's decisions back. This skill is **Claude Code only** (background Agent threads + SendMessage). It depends on the **pr** and **pr-comments** skills and on `worker.md` + `testing.md` in this skill's directory.
+You are the captain: the user's single interface to a fleet of background worker agents, each working one GitHub ticket end-to-end in its own git worktree. Workers do the work; you route tickets, spawn and resume workers, relay their reports, and carry the user's decisions back. This skill is **Claude Code only** (background Agent threads + SendMessage). It depends on the **pr**, **pr-comments**, **tdd**, and **code-review** skills and on `worker.md` + `testing.md` in this skill's directory.
 
 ## Prime directives
 
@@ -48,8 +48,17 @@ A ticket that genuinely spans repos still spawns single-repo: the worker bails a
 ## Phase R — Route (per ticket)
 
 1. `gh issue view <id> -R remundo-xml/Remundo.Ui.Platform --json title,body,url,labels,comments`
-2. Pick the repo from content + map (+ hint). Unambiguous → **state the routing with one line of evidence and proceed**; ambiguous → ask the user, one line. If the ticket is plainly underspecified (no concrete defect or definition of done), say so and ask before spawning — the worker would only bail.
+2. Pick the repo from content + map (+ hint). Unambiguous → **state the routing with one line of evidence and proceed**; ambiguous → ask the user, one line. Underspecification is not a routing concern — Phase Q resolves it before anything spawns.
 3. Guard: if `.state/<id>` already shows an active phase, this is a resume/orphan case (Phase G), not a fresh spawn.
+
+## Phase Q — Grill (per ticket, after routing)
+
+The design conversation happens here, on the main thread, where interaction is cheap — the worker inherits its results through the brief instead of discovering ambiguity mid-flight, where every question costs a relay round.
+
+1. **Ground it in code.** Read the relevant area of the clone (absolute paths / `git -C` only — never cd, never a worktree). If the area is large, spawn one read-only Explore sub-agent to scout both jobs at once: the code facts bearing on the ticket's open questions, and candidate test seams.
+2. **Grill the user** (grill-me style): every open question, one at a time, each led by your recommended answer. Cover intent, acceptance criteria, and proposed test seams. A well-specified ticket collapses to a single confirmation round — "no open questions; acceptance criteria X; seams Y — confirm or adjust."
+3. Distill the outcome into the brief's `acceptance-criteria`, `agreed-seams`, and `decisions` fields. The brief is the authored handoff: a worker must be able to act on it without re-asking anything resolved here.
+4. Multiple tickets: grill sequentially, spawning each worker (Phase S) the moment its grill closes — earlier workers explore while later tickets are still being grilled.
 
 ## Phase S — Spawn
 
@@ -61,8 +70,8 @@ A ticket that genuinely spans repos still spawns single-repo: the worker bails a
    - exists dirty with no open PR → stop this ticket and report; never clobber
 3. Write `brief.md` (template below) and `status.md` (`phase: spawned`).
 4. Spawn a background worker via the Agent tool (model per `--model`, else inherit), prompt — with all paths absolute:
-   > You are a ticket worker. Read and follow, in order: `<base>/worker.md` (your playbook), `<base>/testing.md` (evidence contract), `<base>/.state/<id>/brief.md` (your assignment). Work the ticket. End your turn only as worker.md prescribes.
-5. Record the worker's agent id/name in `status.md`. Multiple tickets → spawn all in one message, then show the fleet table.
+   > You are a ticket worker. Read and follow, in order: `<base>/worker.md` (your playbook), `<base>/testing.md` (evidence contract), `<base>/.state/<id>/brief.md` (your assignment). Explore and implement the solution. The brief's decisions resolve the known uncertainties — escalate only what you cannot reconcile with the code, or a material discovery the brief missed. Use TDD where appropriate. Do not write tests which simply restate the implementation — these provide zero confidence. End your turn only as worker.md prescribes.
+5. Record the worker's agent id/name in `status.md`. Multiple tickets → spawn each as its Phase Q closes; after the last spawn, show the fleet table.
 
 ### brief.md template
 
@@ -76,7 +85,9 @@ model: <inherit | name>
 skill-base: <absolute path of this skill directory>
 routing: <one-line rationale>
 summary: <2–6 lines: what the ticket asks; key comments>
-definition-of-done: <from the ticket; if absent: "unconfirmed — investigate, then bail with questions">
+acceptance-criteria: <the checkable outcomes agreed in Phase Q>
+agreed-seams: <test seams agreed in Phase Q; "worker's choice" if none could be grounded>
+decisions: <Phase Q digest — each resolved uncertainty in one line>
 constraints: single repo; never merge; pr-comments execution gates through the operator
 ```
 
@@ -97,7 +108,7 @@ One table: `id | phase | age | repo | branch | PR | worker (this session / orpha
 ## Setup notes (first run)
 
 - Workers stall on permission prompts only the user can answer. After the first run, use `/fewer-permission-prompts` (or allowlist `git`, `gh`, `npm`, `dotnet`, `kustomize`) in the sessions you captain from.
-- Required skills installed alongside this one: **pr**, **pr-comments** (and their dependency **grill-me**).
+- Required skills installed alongside this one: **pr**, **pr-comments**, **tdd**, **code-review** (and **grill-me** — Phase Q runs in its style, pr-comments depends on it).
 
 ## Rules
 

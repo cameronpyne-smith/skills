@@ -25,13 +25,15 @@ Used by workers in Phase 3 and to assemble every report's Evidence Block. This f
 
 ### C1 — Targeted proof (the gold standard)
 
-A test that captures the ticket's defect: **passes on the branch, demonstrably fails without the fix.** Inside your worktree:
+A test that captures the ticket's defect: **passes on the branch, demonstrably fails without the fix.** The fail run is the load-bearing half — without it the test only proves the code does what the code does.
+
+**Primary route — TDD's red run.** Working red → green produces this proof natively: capture the failing output the moment it happens (it cannot be regenerated later without surgery), then pair it with the final green output. Red run + green run = C1 satisfied.
+
+**Fallback — reconstruct the fail run** (change made without TDD: a config fix tested after the fact, a review-round fix, a missed red capture). Inside your worktree:
 
 1. Write (or find) the test; run it on the branch → pass (paste output).
-2. `git stash push -- <fix paths>` (keeping the test), rerun → must fail (paste output), then `git stash pop`.
+2. Temporarily remove the fix, keeping the test: uncommitted fix → `git stash push -- <fix paths>` … `git stash pop`; committed fix → `git checkout origin/main -- <fix paths>` … restore with `git checkout HEAD -- <fix paths>`. Rerun in between → must fail (paste output).
 3. Fix and test inseparable (same lines)? Note it and construct an equivalent proof (e.g. temporarily revert the fix hunk); if no clean proof exists, record a finding and lean on C2 + C5.
-
-The fail run is the load-bearing half — without it the test only proves the code does what the code does.
 
 ### C2 / C3 — Suite and static checks, per repo (verified 2026-07-14)
 
