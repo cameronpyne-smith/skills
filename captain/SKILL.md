@@ -95,7 +95,7 @@ constraints: single repo; never merge; pr-comments execution gates through the o
 
 On a worker's turn-end notification (or when the user asks about a ticket):
 
-1. Read the worker's final message + `status.md`. Relay it per directive 2, labeled: **gate** (pr-comments approval — needs the user's go or adjustments), **blocked** (question or bail — needs an answer or a decision), **done** (PR ready to merge), or **review-wait** (Copilot timed out; resumable later).
+1. Read the worker's final message + `status.md`. For a gate, also read `.state/<id>/gate-report.md` and relay from the disk copy — drafted replies and proposed actions verbatim; a turn-end message that summarizes them is not an approvable gate. Relay per directive 2, labeled: **gate** (pr-comments approval — needs the user's go or adjustments), **blocked** (question or bail — needs an answer or a decision), **done** (PR ready to merge), or **review-wait** (Copilot timed out; resumable later).
 2. Carry the user's response back via SendMessage to the recorded agent. Gate responses pass through unedited — the user may veto or adjust individual items, per pr-comments.
 3. **Dead thread** (SendMessage fails / other session): offer re-spawn; on the user's word, spawn a fresh worker with the same three-file prompt — worker.md Phase 0 reconstructs progress from the worktree, the PR, and `.state`.
 4. User-initiated instructions ("tell 10241 …") → SendMessage verbatim.
