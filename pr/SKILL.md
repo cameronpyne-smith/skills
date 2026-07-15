@@ -11,7 +11,7 @@ This skill works in any agent that has `gh` and `git` (Claude Code, Copilot CLI)
 
 1. **Invocation is the approval.** There is no gate before pushing or creating the PR. Instead, narrate the plan as you go — branch name, commit message, PR title/body — in chat, so the user can interrupt. Do not pause to ask "shall I proceed?".
 2. **The tree is all-in.** Everything *tracked* in the working tree belongs in this PR — that is the invocation contract. Untracked files are the exception: include ones that are clearly part of the work; flag anything that looks like junk (logs, scratch output, editor droppings) and leave it out rather than silently committing it.
-3. **Stop, don't improvise.** Any git failure caused by conflicting or dirty state (checkout refused, merge conflict, non-fast-forward push) → stop and report exactly what failed. Never stash, force, or reset to work around it.
+3. **Stop, don't improvise.** Any git failure caused by conflicting or dirty state (checkout refused, non-fast-forward push) → stop and report exactly what failed. Never stash, force, or reset to work around it. The one exception: conflicts from Phase 3's merge of origin/main are resolved, not reported.
 4. **One pass through review.** After chaining into pr-comments, you are done. If Copilot re-reviews the fix commits, do not chase it — the user re-invokes `/pr-comments` if they want another round.
 
 ## Phase 0 — Preconditions (fail fast, in this order)
@@ -30,7 +30,7 @@ Let `BRANCH` be the argument, or the current branch if no argument was given. `g
 
 - **Already on `BRANCH`** → use it as-is.
 - **On another branch (typically main) and `BRANCH` does not exist** → `git checkout -b BRANCH origin/main`. Uncommitted changes carry over; local main is never touched or updated.
-- **`BRANCH` exists locally or on the remote** → check it out (`git checkout BRANCH`), then `git merge origin/main`. If the checkout is refused because of uncommitted changes, or the merge conflicts → **stop and report** (prime directive 3).
+- **`BRANCH` exists locally or on the remote** → check it out (`git checkout BRANCH`). If the checkout is refused because of uncommitted changes → **stop and report** (prime directive 3).
 
 ## Phase 2 — Commit
 
@@ -41,8 +41,9 @@ Skip if the tree is clean (re-run case — the work may already be committed).
 
 ## Phase 3 — Push and PR
 
-1. State the intended PR title and body in chat, then `git push -u origin BRANCH`.
-2. **Check for an existing open PR** — `gh pr view BRANCH --json number,url,state,body` (or `gh pr list --head BRANCH`). This is the idempotency point:
+1. `git merge origin/main`. Resolve any conflicts — keep both main's changes and this branch's intent — and complete the merge commit.
+2. State the intended PR title and body in chat, then `git push -u origin BRANCH`.
+3. **Check for an existing open PR** — `gh pr view BRANCH --json number,url,state,body` (or `gh pr list --head BRANCH`). This is the idempotency point:
    - **No PR** → `gh pr create --base main --title "<commit subject>" --body "<body>"`. The PR is **ready, not draft** — Copilot's auto-review skips drafts. Body is concise:
      ```
      ## Summary
@@ -52,7 +53,7 @@ Skip if the tree is clean (re-run case — the work may already be committed).
      <how it was / can be verified>
      ```
    - **Open PR already exists** (re-run, follow-up changes, or a previous run died between push and create) → do **not** create a duplicate. If this run pushed new commits, **update the PR body** (`gh pr edit`) so the Summary reflects the new changes, then continue to Phase 4.
-3. If the push succeeds but `gh pr create` fails, stop and report — a re-run will detect the pushed branch and skip ahead to PR creation.
+4. If the push succeeds but `gh pr create` fails, stop and report — a re-run will detect the pushed branch and skip ahead to PR creation.
 
 ## Phase 4 — Wait for Copilot, then chain
 
