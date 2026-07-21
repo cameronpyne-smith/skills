@@ -40,6 +40,7 @@ The minimal change that satisfies the acceptance criteria, in the repo's existin
 2. **Capture each red run's output as it happens** — it is the fail half of C1 and cannot be regenerated later without surgery.
 3. Run static checks and the single test files you are touching regularly; save the full suite for Phase 3.
 4. Commit as you go on your branch, in the pr skill's conventions: stage specific paths, imperative subject, no AI co-author trailer. **Never push** — pushing belongs to the pr skill.
+5. **Shrinking a shared shape?** If a change removes, strips, or renames a field in anything other code reads — a persisted payload (localStorage, cache entries), a store shape, a DTO — enumerate every reader of that field (`git grep`) BEFORE committing, classify each (crashes / silently degrades / unaffected), and carry the sweep into the Evidence Block (C11). Tracing one producer path is not enough: follow every path that can hand the object to a reader, including reload/rehydration of a persisted copy back into live state. This applies with full force to review-round fixes — a reviewer's suggestion is a change like any other, not a pre-verified one; sweep ALL fields the change touches, not just the one the reviewer named.
 
 ## Phase 3 — Verify & review
 

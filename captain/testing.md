@@ -22,6 +22,8 @@ Used by workers in Phase 3 and to assemble every report's Evidence Block. This f
 | C8 | /verify skill integration per repo | Planned |
 | C9 | Independent verifier agent re-runs the evidence (anti evidence-theater; captain-era) | Planned |
 | C10 | Bootstrap a test harness in Remundo.Ui.Admin (none exists today) | Planned |
+| C11 | Contract-shrink sweep: every reader of a removed/stripped/renamed field enumerated (`git grep`) and classified — crashes / silently degrades / unaffected — including readers of rehydrated persisted copies | Implemented |
+| C12 | Reload parity: when a change touches persistence, session boot, or store hydration, prove an authenticated hard-refresh leaves the app functionally intact (test at the rehydration seam asserting the restored shape serves its consumers, or explicit C5 steps: refresh, then click through the affected surfaces) | Implemented |
 
 ### C1 — Targeted proof (the gold standard)
 
