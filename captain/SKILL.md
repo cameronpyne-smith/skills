@@ -105,6 +105,8 @@ On a worker's turn-end notification (or when the user asks about a ticket):
 
 One table: `id | phase | age | repo | branch | PR | worker (this session / orphan / none)`. Below it, only what needs the user: gates, blocked workers, orphans, unsafe-to-prune leftovers.
 
+In every table shown to the user (fleet status, merge boards, per-ticket summaries), PR references must be full raw URLs (`https://github.com/...`) — never bare numbers or markdown-label links.
+
 ## Setup notes (first run)
 
 - Workers stall on permission prompts only the user can answer. After the first run, use `/fewer-permission-prompts` (or allowlist `git`, `gh`, `npm`, `dotnet`, `kustomize`) in the sessions you captain from.
