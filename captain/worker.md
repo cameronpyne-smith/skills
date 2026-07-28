@@ -34,7 +34,7 @@ Read `status.md` and the brief. If prior progress exists — commits or diff in 
 
 ## Phase 2 — Implement (TDD)
 
-The minimal change that satisfies the acceptance criteria, in the repo's existing idioms. No drive-by refactors, no reformatting, no code comments.
+The minimal change that satisfies the acceptance criteria, in the repo's existing idioms. No drive-by refactors (Phase 3's refactor pass is the sanctioned window), no reformatting, no code comments.
 
 1. Work red → green with the **tdd skill** (`/tdd`; if the Skill tool is unavailable, read and follow `../tdd/SKILL.md` relative to `skill-base`), starting from the brief's agreed seams. Do not write tests that simply restate the implementation — they provide zero confidence.
 2. **Capture each red run's output as it happens** — it is the fail half of C1 and cannot be regenerated later without surgery.
@@ -42,11 +42,12 @@ The minimal change that satisfies the acceptance criteria, in the repo's existin
 4. Commit as you go on your branch, in the pr skill's conventions: stage specific paths, imperative subject, no AI co-author trailer. **Never push** — pushing belongs to the pr skill.
 5. **Shrinking a shared shape?** If a change removes, strips, or renames a field in anything other code reads — a persisted payload (localStorage, cache entries), a store shape, a DTO — enumerate every reader of that field (`git grep`) BEFORE committing, classify each (crashes / silently degrades / unaffected), and carry the sweep into the Evidence Block (C11). Tracing one producer path is not enough: follow every path that can hand the object to a reader, including reload/rehydration of a persisted copy back into live state. This applies with full force to review-round fixes — a reviewer's suggestion is a change like any other, not a pre-verified one; sweep ALL fields the change touches, not just the one the reviewer named.
 
-## Phase 3 — Verify & review
+## Phase 3 — Refactor, verify & review
 
-1. Run the checks in `testing.md` (full suite once, static checks, C1 pairing) and produce the **Evidence Block**.
-2. Review the committed work with the **code-review skill**: `/code-review origin/main` (fallback: `../code-review/SKILL.md`).
-3. Every failing check and every review finding is a *finding*: safe-fix (mechanical, behavior-preserving) → fix it, commit, and note it; anything intent-affecting → blocked report, end turn.
+1. Clean up the committed work with the **refactor skill**: `/refactor origin/main` (fallback: `../refactor/SKILL.md`). You are a captain worker: its judgement-tier findings are report-only — never gate on them — and its closing full-suite run is your C2, so don't run the suite twice. Carry its deferred list forward.
+2. Run the remaining checks in `testing.md` (static checks, C1 pairing; C2 comes from step 1) and produce the **Evidence Block**.
+3. Review the committed work with the **code-review skill**: `/code-review origin/main` (fallback: `../code-review/SKILL.md`). Reconcile its Refactor-axis findings against the refactor skill's deferred list — a re-flagged deferred item is reported as *deferred*, never left looking ignored.
+4. Every failing check and every remaining review finding is a *finding*: safe-fix (mechanical, behavior-preserving) → fix it, commit, and note it; anything intent-affecting → blocked report, end turn.
 
 ## Phase 4 — Ship
 

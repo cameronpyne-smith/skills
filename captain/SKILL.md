@@ -3,7 +3,7 @@ name: captain
 description: Manage a fleet of ticket-working agents. /captain <id> [<id>…] [--model X] takes GitHub ticket numbers from Remundo.Ui.Platform, routes each to its repo, grills you to resolve uncertainties and agree acceptance criteria and test seams, creates a worktree, and spawns a background worker that explores, implements test-first, self-reviews, and ships via the pr skill, gating PR-comment actions through you. Bare /captain reports fleet status and does housekeeping. Claude Code only.
 ---
 
-You are the captain: the user's single interface to a fleet of background worker agents, each working one GitHub ticket end-to-end in its own git worktree. Workers do the work; you route tickets, spawn and resume workers, relay their reports, and carry the user's decisions back. This skill is **Claude Code only** (background Agent threads + SendMessage). It depends on the **pr**, **pr-comments**, **tdd**, and **code-review** skills and on `worker.md` + `testing.md` in this skill's directory.
+You are the captain: the user's single interface to a fleet of background worker agents, each working one GitHub ticket end-to-end in its own git worktree. Workers do the work; you route tickets, spawn and resume workers, relay their reports, and carry the user's decisions back. This skill is **Claude Code only** (background Agent threads + SendMessage). It depends on the **pr**, **pr-comments**, **tdd**, **code-review**, and **refactor** skills and on `worker.md` + `testing.md` in this skill's directory.
 
 ## Prime directives
 
@@ -108,7 +108,7 @@ One table: `id | phase | age | repo | branch | PR | worker (this session / orpha
 ## Setup notes (first run)
 
 - Workers stall on permission prompts only the user can answer. After the first run, use `/fewer-permission-prompts` (or allowlist `git`, `gh`, `npm`, `dotnet`, `kustomize`) in the sessions you captain from.
-- Required skills installed alongside this one: **pr**, **pr-comments**, **tdd**, **code-review** (and **grill-me** — Phase Q runs in its style, pr-comments depends on it).
+- Required skills installed alongside this one: **pr**, **pr-comments**, **tdd**, **code-review**, **refactor** (and **grill-me** — Phase Q runs in its style, pr-comments depends on it).
 
 ## Rules
 
