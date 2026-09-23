@@ -19,7 +19,7 @@ Stop with a clear message if any check fails. Do not continue or work around it.
 
 1. **`gh` available and authenticated** — `gh auth status`. If not, stop.
 2. **Resolve the PR from the current branch** — `gh pr view --json number,headRefName,url,baseRefName`. The user must already be **on the PR branch**; this skill never switches branches. If the current branch has no open PR (or more than one), stop and say so.
-3. **Working tree must be clean** — `git status --porcelain`. If there is *any* output, **EXIT immediately** and tell the user to commit or stash their work first. It is the user's responsibility to clear the tree. Do not touch anything.
+3. **No tracked changes** — `git status --porcelain --untracked-files=no`. If there is *any* output, **EXIT immediately** and tell the user to commit or stash their work first. It is the user's responsibility to clear the tree. Do not touch anything. Untracked files don't block (the pr skill deliberately leaves junk untracked): leave them alone, never stage them, and list them in the report.
 4. **Update the branch** — `git pull --ff-only`. If it cannot fast-forward (diverged), stop and let the user sort it out.
 
 Capture `OWNER`, `REPO` (from `gh repo view --json owner,name` or the remote) and the PR `NUMBER` for the commands below.
@@ -131,6 +131,6 @@ Keep it summary-first: describe each change, surface possible issues, and show c
 - Act as the authenticated user; everything posts under their name.
 - Never push or post without an explicit go, unless the auto lane applies (no flagged/needs-discussion items, no human rebuttals). Never `git add -A`/`-am`.
 - Evaluate every comment; rebuttals need evidence; bias to `ask-user` when unsure.
-- Require a clean working tree and the PR branch already checked out — fail fast otherwise.
+- Require no tracked changes and the PR branch already checked out — fail fast otherwise. Untracked files are ignored, never staged.
 - A failed build/test or a failed grill flags the fix, which sends the whole batch to the approval lane.
 - One pass per invocation: never request a re-review. The review loop belongs to the pr skill.
