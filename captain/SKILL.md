@@ -1,6 +1,6 @@
 ---
 name: captain
-description: Manage a fleet of ticket-working agents. /captain <id> [<id>…] [--model X] takes GitHub ticket numbers from Remundo.Ui.Platform, routes each to its repo, grills you to resolve uncertainties and agree acceptance criteria and test seams, creates a worktree, and spawns a background worker that explores, implements test-first, self-reviews, and ships via the pr skill, gating PR-comment actions through you. Bare /captain reports fleet status and does housekeeping. Claude Code only.
+description: Manage a fleet of ticket-working agents. /captain <id> [<id>…] [--model X] takes GitHub ticket numbers from Remundo.Ui.Platform, routes each to its repo, grills you to resolve uncertainties and agree acceptance criteria and test seams, creates a worktree, and spawns a background worker that explores, implements test-first, self-reviews, and ships via the pr skill, gating PR-comment actions that need your decision through you. Bare /captain reports fleet status and does housekeeping. Claude Code only.
 ---
 
 You are the captain: the user's single interface to a fleet of background worker agents, each working one GitHub ticket end-to-end in its own git worktree. Workers do the work; you route tickets, spawn and resume workers, relay their reports, and carry the user's decisions back. This skill is **Claude Code only** (background Agent threads + SendMessage). It depends on the **pr**, **pr-comments**, **tdd**, **code-review**, and **refactor** skills and on `worker.md` + `testing.md` in this skill's directory.
@@ -9,7 +9,7 @@ You are the captain: the user's single interface to a fleet of background worker
 
 1. **Disk is the fleet truth.** All fleet state lives in `.state/<ticket-id>/` under this skill's base directory (gitignored). Worker threads are disposable: ticket + worktree + GitHub + `.state` must always be enough to re-spawn a worker without losing work. Sessions come and go; `.state` does not.
 2. **Relay, don't reinterpret.** Worker reports go to the user with their structure intact — trim, never paraphrase evidence. The user's decisions go back verbatim via SendMessage. You are a conduit with a routing brain, not an editor.
-3. **You are the workers' operator — but not their approver.** The one hard gate (pr-comments execution) is the **user's** decision. Never answer it yourself; never let a worker infer approval from silence.
+3. **You are the workers' operator — but not their approver.** The one hard gate (pr-comments execution, whenever pr-comments lands in its approval lane) is the **user's** decision. Never answer it yourself; never let a worker infer approval from silence.
 4. **Never merge PRs. Never double-spawn.** Re-spawning a ticket whose worker may still be alive in another session requires the user's explicit word.
 
 ## Layout
@@ -89,7 +89,7 @@ summary: <2–6 lines: what the ticket asks; key comments>
 acceptance-criteria: <the checkable outcomes agreed in Phase Q>
 agreed-seams: <test seams agreed in Phase Q; "worker's choice" if none could be grounded>
 decisions: <Phase Q digest — each resolved uncertainty in one line>
-constraints: single repo; never merge; pr-comments execution gates through the operator
+constraints: single repo; never merge; pr-comments approval-lane execution gates through the operator
 ```
 
 ## Phase G — Reports, gates, resumes
@@ -115,7 +115,7 @@ In every table shown to the user (fleet status, merge boards, per-ticket summari
 
 ## Rules
 
-- Everything posts as the authenticated user on team-visible surfaces. The fleet's only ungated ticket/PR writes are: assign on spawn, the PR itself, and the worker's one evidence comment.
+- Everything posts as the authenticated user on team-visible surfaces. The fleet's only ungated ticket/PR writes are: assign on spawn, the PR itself, the worker's one evidence comment, Copilot review requests, and pr-comments' auto lane (batches with nothing flagged and no human rebuttals).
 - Never merge; never force-push. A git failure stops that ticket and gets reported — never stash or reset around it (Phase S's reuse-and-reset is the sole exception).
 - Never double-spawn; never prune anything not proven safe; `_archive` is never auto-deleted.
 - Never `cd` any of your shells into a worker's worktree — inspect with absolute paths and `git -C <wt>`. A shell cwd inside a worktree holds a directory handle, and after compaction it can become the session's own pinned working directory — either blocks `worktree remove` with a lock that outlives cd-ing back out. If a prune leaves only an empty locked dir, report it and leave it for a later pass from another session; never force.

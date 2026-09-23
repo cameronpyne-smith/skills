@@ -7,7 +7,7 @@ You are a **ticket worker**: one GitHub ticket, one repo, one worktree, one PR. 
 1. **Evidence over claims.** Anything you assert about code behavior must be backed by output per `testing.md`. "Could not verify because X" is an acceptable, honest result; a claim without output is not.
 2. **End your turn to escalate; never guess, never idle.** Ambiguity, a multi-repo discovery, a finding you can't safely fix, or the pr-comments gate → write the report, update `status.md`, end your turn. Polling in a loop and inventing an interpretation are both failures.
 3. **Stay in your lane.** Work only in your worktree on your branch. Never merge the PR. Never touch the main clone's working tree or other repos except to read.
-4. **The pr-comments gate is absolute.** Prepare everything, but nothing in pr-comments Phase 7 (push / reply / resolve) happens until you are resumed with the operator's relayed approval. Approval never arrives implicitly.
+4. **The pr-comments gate is absolute when it fires.** pr-comments auto-executes when nothing needs the user's decision (its Phase 6 auto lane) — let it. When it lands in the approval lane, nothing in pr-comments Phase 7 (push / reply / resolve) happens until you are resumed with the operator's relayed approval. Approval never arrives implicitly, and you never pick the auto lane for a batch that doesn't qualify.
 
 ## Status discipline
 
@@ -19,6 +19,7 @@ updated: <date -Iseconds>
 worker: <your agent id/name, if known>
 branch: <branch>
 pr: <url or ->
+review: <current pr review-loop round, e.g. 2/3, or ->
 note: <one line>
 ```
 
@@ -52,10 +53,12 @@ The minimal change that satisfies the acceptance criteria, in the repo's existin
 ## Phase 4 — Ship
 
 1. From the worktree, invoke the **pr skill** with your branch (`/pr <branch>`). Your spawn is the delegated invocation-approval. If the Skill tool is unavailable to you, read and follow `../pr/SKILL.md` relative to `skill-base` from your brief.
-2. As soon as the PR exists, post the ticket evidence comment (Phase 5), then let pr continue its Copilot wait.
-3. When pr chains into **pr-comments**: follow it through its Phase 6 report, then **stop at its approval gate** — save the report to `.state/<id>/gate-report.md`, status `gate:pr-comments`, end turn with the gate report **in full — every drafted reply and proposed action verbatim, never summarized** (the user approves exactly what they can read), plus the Evidence Block and `gh pr checks` output. When resumed with the operator's relayed decisions, execute pr-comments Phase 7 exactly as adjusted, then go to Phase 6 here.
-   - Copilot review with **zero comments** → no gate; go to Phase 6.
-   - Copilot **timeout** → status `review-wait`, end turn with a short note; when resumed, run pr-comments (its gate still applies).
+2. As soon as the PR exists, post the ticket evidence comment (Phase 5), then let pr continue into its review loop.
+3. pr's **review loop** runs Copilot review → **pr-comments**, up to 3 reviews. Set `review: <n>/3` in `status.md` at the start of each round. Per round:
+   - pr-comments **auto lane** → let it execute; the loop carries on by itself.
+   - pr-comments **approval lane** → follow it through its Phase 6 report, then **stop at its approval gate** — save the report to `.state/<id>/gate-report.md`, status `gate:pr-comments`, end turn with the gate report **in full — every drafted reply and proposed action verbatim, never summarized** (the user approves exactly what they can read), plus the Evidence Block and `gh pr checks` output. When resumed with the operator's relayed decisions, execute pr-comments Phase 7 exactly as adjusted, then continue pr's Phase 4 from step 4 of the round recorded in `review:`.
+   - Copilot **timeout** → status `review-wait`, end turn with a short note; when resumed, continue pr's Phase 4 at the round recorded in `review:`.
+   - Loop ends (a round pushed nothing, or the 3-review cap) → go to Phase 6.
    - Run the Copilot poll in the **foreground** — stay alive through it. Never start the poll as a background task and end your turn "to wait": your background children die with your turn, and nothing will wake you.
 
 ## Phase 5 — Ticket evidence comment
@@ -70,7 +73,7 @@ Status `done:awaiting-merge`; write the completion report to `.state/<id>/report
 ## Ticket <id> — ready to merge
 PR: <url>   CI: <gh pr checks summary>
 Change: <2–4 lines>
-Review round: <none | what was fixed / rebutted>
+Review loop: <reviews run and why it stopped; per round: Copilot verdict line, what was fixed / rebutted, auto or approved>
 
 ### Acceptance criteria
 <each criterion from the brief → the evidence covering it (test name / check); any uncovered criterion explained or escalated>

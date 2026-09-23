@@ -1,6 +1,6 @@
 ---
 name: pr-comments
-description: Work through the open comments on the current branch's PR — classify each as a valid fix, a question to answer, an invalid comment to rebut, or one needing discussion; evaluate (don't blindly obey) and verify before acting; present a report for approval, then commit, push, reply, and resolve. Use when the user wants to action/respond to pull request review comments. Invoke with /pr-comments.
+description: Work through the open comments on the current branch's PR — classify each as a valid fix, a question to answer, an invalid comment to rebut, or one needing discussion; evaluate (don't blindly obey) and verify before acting; then commit, push, reply, and resolve — automatically when nothing needs the user's decision, otherwise after presenting a report for approval. Use when the user wants to action/respond to pull request review comments. Invoke with /pr-comments.
 ---
 
 You process the review comments on a pull request: evaluate each one, fix the code where the comment is genuinely valid, push, and reply — or rebut comments that are wrong. You act through the GitHub CLI (`gh`) and `git`, posting **as the authenticated user**.
@@ -11,7 +11,7 @@ This skill works in any agent that has `gh` and `git` (Claude Code, Copilot CLI)
 
 1. **Evaluate, don't obey.** A reviewer — human or bot — can be wrong, working from stale context, or stating a preference as a defect. Never apply a change just because a comment asked for it. Confirm the assertion first (read the code, run a test, grep, check the spec). A "this comment is invalid" verdict must be backed by **concrete evidence**, never prose reasoning alone.
 2. **When genuinely unsure, escalate to the user.** `needs-discussion` is the fallback for anything that isn't *clearly* a valid-with-an-obvious-fix or *clearly* invalid-with-evidence. Do not force a verdict to seem useful, and do not rubber-stamp comments as valid to avoid conflict.
-3. **Nothing irreversible happens without explicit approval.** You prepare everything locally, present a report, and only push / reply / resolve after the user says go.
+3. **Nothing irreversible happens without approval — unless nothing needs the user.** You prepare everything locally and present a report. If the batch contains nothing that needs the user's decision (see Phase 6), you proceed straight to push / reply / resolve; otherwise you only act after the user says go.
 
 ## Phase 0 — Preconditions (fail fast, in this order)
 
@@ -83,7 +83,7 @@ Sort each remaining comment into exactly one action. The reviewer's identity set
 
 **Rebuttals (`rebut-and-reply`)** — draft an evidence-backed reply (state the evidence, not just an opinion).
 
-## Phase 6 — Report and get approval
+## Phase 6 — Report, then auto-execute or get approval
 
 Present a single report **in chat**, grouped by action:
 
@@ -93,13 +93,17 @@ Present a single report **in chat**, grouped by action:
 - 🚩 **Needs-discussion / flagged** — including any fix demoted by verification or the grill.
 - ⚪ **No-action** — one line each, so the user sees they were considered.
 
-Keep it summary-first: describe each change, surface possible issues, and show code snippets only when small. Then:
+Keep it summary-first: describe each change, surface possible issues, and show code snippets only when small. Then choose the lane:
+
+**Auto lane** — the batch has **no** 🚩 needs-discussion/flagged items **and no rebuttals of human comments** (rebuttals of bot comments are fine). Nothing needs the user's decision: say "Nothing needs your decision — executing", and go straight to Phase 7 without waiting.
+
+**Approval lane** — anything else. The whole batch waits:
 
 1. **Resolve every `needs-discussion`/flagged item with the user first**, turning each into a concrete action — so the batch is complete before approval.
 2. The user may **veto or adjust any individual item** ("skip the fix on #3", "reword rebuttal #2", "#5 is actually valid"). It is a conversation, not a yes/no.
 3. **Do nothing irreversible until the user gives an explicit go** ("push" / "approve"). Default on anything ambiguous is **don't act**.
 
-## Phase 7 — Execute (only after approval)
+## Phase 7 — Execute (auto lane, or after approval)
 
 1. **Push** all commits in one go: `git push`. **If the push fails, STOP — post no replies and resolve nothing.** Report the failure; the user will fix the push and re-invoke (re-derive commit SHAs at that point, as a rebase/amend may have changed them).
 2. **After a successful push**, process each handled comment — **continue on individual failures**, don't abort the batch:
@@ -120,12 +124,13 @@ Keep it summary-first: describe each change, surface possible issues, and show c
      ```
      gh api graphql -f query='mutation($t:ID!){ resolveReviewThread(input:{threadId:$t}){ thread{ isResolved } } }' -F t=<thread.id>
      ```
-3. **End summary** — list what was replied/resolved and what errored. **Explicitly flag any comment that was replied to but NOT resolved** (e.g. a resolve API failure), with its URL — because the idempotency rule will skip it on re-run, so the user must resolve it manually: `replied but NOT resolved — resolve manually: <url>`.
+3. **End summary** — state which lane ran and whether any commits were pushed (the pr skill's review loop keys off this), then list what was replied/resolved and what errored. **Explicitly flag any comment that was replied to but NOT resolved** (e.g. a resolve API failure), with its URL — because the idempotency rule will skip it on re-run, so the user must resolve it manually: `replied but NOT resolved — resolve manually: <url>`.
 
 ## Rules
 
 - Act as the authenticated user; everything posts under their name.
-- Never push or post without an explicit go. Never `git add -A`/`-am`.
+- Never push or post without an explicit go, unless the auto lane applies (no flagged/needs-discussion items, no human rebuttals). Never `git add -A`/`-am`.
 - Evaluate every comment; rebuttals need evidence; bias to `ask-user` when unsure.
 - Require a clean working tree and the PR branch already checked out — fail fast otherwise.
-- A failed build/test or a failed grill pulls a fix out of the autonomous lane into the report.
+- A failed build/test or a failed grill flags the fix, which sends the whole batch to the approval lane.
+- One pass per invocation: never request a re-review. The review loop belongs to the pr skill.
