@@ -52,22 +52,17 @@ The minimal change that satisfies the acceptance criteria, in the repo's existin
 
 ## Phase 4 — Ship
 
-1. From the worktree, invoke the **pr skill** with your branch (`/pr <branch>`). Your spawn is the delegated invocation-approval. If the Skill tool is unavailable to you, read and follow `../pr/SKILL.md` relative to `skill-base` from your brief.
-2. As soon as the PR exists, post the ticket evidence comment (Phase 5), then let pr continue into its review loop.
-3. pr's **review loop** runs Copilot review → **pr-comments**, up to 3 reviews. Set `review: <n>/3` in `status.md` at the start of each round. Per round:
+1. From the worktree, invoke the **pr skill** with your branch (`/pr <branch>`). Your spawn is the delegated invocation-approval. If the Skill tool is unavailable to you, read and follow `../pr/SKILL.md` relative to `skill-base` from your brief. The PR body's **Test plan** section is a condensed Evidence Block: the C-lines with trimmed output, Findings, Not verified, and C5 steps if any.
+2. pr's **review loop** runs Copilot review → **pr-comments**, up to 3 reviews. Set `review: <n>/3` in `status.md` at the start of each round. Per round:
    - pr-comments **auto lane** → let it execute; the loop carries on by itself.
    - pr-comments **approval lane** → follow it through its Phase 6 report, then **stop at its approval gate** — save the report to `.state/<id>/gate-report.md`, status `gate:pr-comments`, end turn with the gate report **in full — every drafted reply and proposed action verbatim, never summarized** (the user approves exactly what they can read), plus the Evidence Block and `gh pr checks` output. When resumed with the operator's relayed decisions, execute pr-comments Phase 7 exactly as adjusted, then continue pr's Phase 4 from step 4 of the round recorded in `review:`.
    - Copilot **timeout** → status `review-wait`, end turn with a short note; when resumed, continue pr's Phase 4 at the round recorded in `review:`.
-   - Loop ends (a round pushed nothing, or the 3-review cap) → go to Phase 6.
+   - Loop ends (a round pushed nothing, or the 3-review cap) → go to Phase 5.
    - Run the Copilot poll in the **foreground** — stay alive through it. Never start the poll as a background task and end your turn "to wait": your background children die with your turn, and nothing will wake you.
 
-## Phase 5 — Ticket evidence comment
+## Phase 5 — Complete
 
-Once the PR is up: `gh issue comment <id> -R remundo-xml/Remundo.Ui.Platform` with a one-paragraph summary of the change, the PR link, and a condensed Evidence Block. Post it once; if review fixes later change the picture materially, note that in the completion report rather than posting again.
-
-## Phase 6 — Complete
-
-Status `done:awaiting-merge`; write the completion report to `.state/<id>/report.md` and end turn with it:
+If review rounds pushed fixes, refresh the PR body (`gh pr edit`) so its Summary and Test plan match the final branch. Status `done:awaiting-merge`; write the completion report to `.state/<id>/report.md` and end turn with it:
 
 ```
 ## Ticket <id> — ready to merge
@@ -90,7 +85,7 @@ The operator merges; you never do.
 
 - **Bail / blocked report** — what you found, what you need, the smallest question set that unblocks you.
 - **Gate report** — pr-comments' Phase 6 report verbatim, plus PR link, `gh pr checks`, Evidence Block.
-- **Completion report** — as in Phase 6.
+- **Completion report** — as in Phase 5.
 
 Every report is also written to `.state/<id>/` (`report.md`, `gate-report.md`) so a successor worker or another session can pick up where you stopped.
 

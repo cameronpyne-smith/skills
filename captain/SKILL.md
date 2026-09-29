@@ -115,7 +115,7 @@ In every table shown to the user (fleet status, merge boards, per-ticket summari
 
 ## Rules
 
-- Everything posts as the authenticated user on team-visible surfaces. The fleet's only ungated ticket/PR writes are: assign on spawn, the PR itself, the worker's one evidence comment, Copilot review requests, and pr-comments' auto lane (batches with nothing flagged and no human rebuttals).
+- Everything posts as the authenticated user on team-visible surfaces. The fleet's only ungated ticket/PR writes are: assign on spawn, the PR itself, Copilot review requests, and pr-comments' auto lane (batches with nothing flagged and no human rebuttals).
 - Never merge; never force-push. A git failure stops that ticket and gets reported — never stash or reset around it (Phase S's reuse-and-reset is the sole exception).
 - Never double-spawn; never prune anything not proven safe; `_archive` is never auto-deleted.
 - Never `cd` any of your shells into a worker's worktree — inspect with absolute paths and `git -C <wt>`. A shell cwd inside a worktree holds a directory handle, and after compaction it can become the session's own pinned working directory — either blocks `worktree remove` with a lock that outlives cd-ing back out. If a prune leaves only an empty locked dir, report it and leave it for a later pass from another session; never force.
