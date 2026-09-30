@@ -1,6 +1,6 @@
 ---
 name: pr
-description: Ship the current work as a pull request — branch off latest main with the given branch name, commit everything, push, create the PR, then loop Copilot review → pr-comments skill, re-requesting review after every round that pushed fixes, up to 3 reviews. Use when the user wants to turn the working tree into a PR. Invoke with /pr <branch-name>, e.g. /pr fix-token, or just /pr to ship the branch you are already on.
+description: Ship the current work as a pull request — branch off latest main with the given branch name, commit everything, push, create the PR, then loop Copilot review → pr-comments skill, re-requesting review after every round that pushed fixes, up to 3 reviews, then wait for CI and fix any check the branch broke. Use when the user wants to turn the working tree into a PR. Invoke with /pr <branch-name>, e.g. /pr fix-token, or just /pr to ship the branch you are already on.
 ---
 
 You ship the working tree as a pull request: branch, commit, push, create the PR, then run a review loop — GitHub Copilot reviews, the **`pr-comments` skill** actions it (this skill depends on it; they ship together), and any fixes it pushes get re-reviewed. You act through the GitHub CLI (`gh`) and `git`, posting **as the authenticated user**.
@@ -13,6 +13,7 @@ This skill works in any agent that has `gh` and `git` (Claude Code, Copilot CLI)
 2. **The tree is all-in.** Everything *tracked* in the working tree belongs in this PR — that is the invocation contract. Untracked files are the exception: include ones that are clearly part of the work; flag anything that looks like junk (logs, scratch output, editor droppings) and leave it out rather than silently committing it.
 3. **Stop, don't improvise.** Any git failure caused by conflicting or dirty state (checkout refused, non-fast-forward push) → stop and report exactly what failed. Never stash, force, or reset to work around it. The one exception: conflicts from Phase 3's merge of origin/main are resolved, not reported.
 4. **Fixes get re-reviewed.** Any round whose pr-comments pass pushed commits gets a fresh Copilot review — fix commits are new, unreviewed code. Stop when a round pushes nothing, or after **3 reviews total**. Copilot's verdict (🟢/🟡/🔵) never drives the loop; it is reported, nothing more.
+5. **Green before done.** The run is not finished until every required check on the head commit has passed or has been handed to the user. A failing check is work, not a footnote.
 
 ## Phase 0 — Preconditions (fail fast, in this order)
 
@@ -86,10 +87,23 @@ Each round:
    - **pr-comments stopped on a failure** (e.g. push failed) → stop and report; its own end summary says what to do.
 5. **Timeout** at step 1 → report "no Copilot review after 10 minutes — re-run `/pr` later" with the PR URL and the round reached, and stop. Do not keep waiting.
 
+## Phase 5 — CI gate
+
+Runs after the review loop ends for any reason except a git or pr-comments failure. At most **3 fix attempts**.
+
+1. **Wait for checks on the current head** — `gh pr checks NUMBER --watch --fail-fast=false`, capped at 20 minutes. Checks can take a moment to register after a push ("no checks reported"); retry that for up to 2 minutes before concluding.
+2. **All pass** → done; report the check list.
+3. **Any fail** → for each failed check read the log: `gh run view <run-id> --log-failed`, or `gh run view <run-id> --job <job-id> --log` when the failing step writes its findings to a summary. Name the cause from the log, never from the check's name. Classify:
+   - **Caused by this branch** — a test, build, lint, type-check or warning-ratchet failure that points at code this PR touches or at projects/files it adds → fix it as pr-comments' Phase 5 fixes a comment (local verification where the repo allows it, grill-me for non-trivial changes), commit with the check name in the subject, push, and go back to step 1.
+   - **Not this branch** — also failing on main, runner/infra error, missing secret, a flaky test that passes on re-run → do not change code. Re-run once (`gh run rerun <run-id> --failed`), then report.
+   - **Only an override would clear it** — a label such as `allow-new-warnings`, skipping a test, raising a threshold → **never apply it yourself.** Present the root-cause fix and the override as options and wait for the user.
+4. **Re-review.** If this phase pushed commits and fewer than 3 Copilot reviews have run, return to Phase 4 for another round, then come back here. If the cap is reached, report that the CI fixes have not been reviewed by Copilot.
+5. **3 attempts spent and still red** → stop and report each failing check with its log excerpt.
+
 ## Rules
 
 - Act as the authenticated user; everything posts under their name.
 - Branch name comes from the argument, or the current branch when omitted (never main); base is always `origin/main`.
 - Never `git add -A`/`-am`; never stash, force-push, or reset to recover from a git failure — stop and report instead.
 - Re-runs must be safe: reuse the branch, skip the commit if clean, never duplicate the PR, update the PR body when new commits were pushed.
-- End every run with the PR URL, a one-line status (created / updated), and the review loop outcome: reviews run, why it stopped (clean round / 3-review cap / timeout / failure), and each round's recorded verdict line with what pr-comments did. Then open the PR in the browser: `gh pr view NUMBER --web` (once per run, at the end).
+- End every run with the PR URL, a one-line status (created / updated), and the review loop outcome: reviews run, why it stopped (clean round / 3-review cap / timeout / failure), and each round's recorded verdict line with what pr-comments did, and the final CI state: every check with pass/fail, what Phase 5 fixed, and anything left red with why. Then open the PR in the browser: `gh pr view NUMBER --web` (once per run, at the end).
