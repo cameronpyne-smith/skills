@@ -1,6 +1,6 @@
 ---
 name: pr
-description: Ship the current work as a pull request — branch off latest main with the given branch name, commit everything, push, create the PR, then loop review → pr-comments skill (GitHub Copilot, or the remundo-sdlc plugin's review in the repos it covers), reviewing again after every round that pushed fixes, up to 3 reviews, then wait for CI and fix any check the branch broke. Use when the user wants to turn the working tree into a PR. Invoke with /pr <branch-name>, e.g. /pr fix-token, or just /pr to ship the branch you are already on.
+description: Ship the current work as a pull request — branch off latest main with the given branch name, commit everything, push, create the PR, then loop review → pr-comments skill (GitHub Copilot, or the remundo-sdlc plugin's review in the repos it covers), reviewing again after every round that pushed fixes, up to 3 reviews, then wait for CI and fix any check the branch broke, and finally offer the Teams review-request post via the pr-post skill. Use when the user wants to turn the working tree into a PR. Invoke with /pr <branch-name>, e.g. /pr fix-token, or just /pr to ship the branch you are already on.
 ---
 
 You ship the working tree as a pull request: branch, commit, push, create the PR, then run a review loop — GitHub Copilot reviews and the **`pr-comments` skill** actions it (this skill depends on it; they ship together), or, in repos the `remundo-sdlc` Claude Code plugin covers, the plugin's review reviews and fixes and pr-comments handles everyone else's comments — and any fixes pushed get re-reviewed. You act through the GitHub CLI (`gh`) and `git`, posting **as the authenticated user**.
@@ -9,7 +9,7 @@ This skill works in any agent that has `gh` and `git` (Claude Code, Copilot CLI)
 
 ## Prime directives
 
-1. **Invocation is the approval.** There is no gate before pushing or creating the PR. Instead, narrate the plan as you go — branch name, commit message, PR title/body — in chat, so the user can interrupt. Do not pause to ask "shall I proceed?".
+1. **Invocation is the approval.** There is no gate before pushing or creating the PR. The one gate is at the very end: the Teams review post (Phase 6), which only ever posts on the user's `post`. Instead, narrate the plan as you go — branch name, commit message, PR title/body — in chat, so the user can interrupt. Do not pause to ask "shall I proceed?".
 2. **The tree is all-in.** Everything *tracked* in the working tree belongs in this PR — that is the invocation contract. Untracked files are the exception: include ones that are clearly part of the work; flag anything that looks like junk (logs, scratch output, editor droppings) and leave it out rather than silently committing it.
 3. **Stop, don't improvise.** Any git failure caused by conflicting or dirty state (checkout refused, non-fast-forward push) → stop and report exactly what failed. Never stash, force, or reset to work around it. The one exception: conflicts from Phase 3's merge of origin/main are resolved, not reported.
 4. **Fixes get re-reviewed.** Any round that pushed commits gets a fresh review — fix commits are new, unreviewed code. Stop when a round pushes nothing, or after **3 reviews total**. The reviewer's verdict (Copilot's 🟢/🟡/🔵) never drives the loop; it is reported, nothing more. In plugin mode the merge gate beats the cap: a head without a `remundo-review` status always gets one more review.
@@ -144,10 +144,22 @@ Runs after the review loop ends for any reason except a git or pr-comments failu
 4. **Re-review.** If this phase pushed commits and fewer than 3 reviews have run, return to Phase 4 for another round, then come back here. If the cap is reached, report that the CI fixes have not been reviewed. In plugin mode, still run Phase 4's plugin steps 1–2 once on the new head, because the merge requires `remundo-review` on it; report that review as gate-only.
 5. **3 attempts spent and still red** → stop and report each failing check with its log excerpt.
 
+## Phase 6 — Review post
+
+Runs after the end report and `gh pr view --web`, as the last thing in the run. Hand off to the **`pr-post` skill** (this skill depends on it) only when all of these hold:
+
+- this run **created** the PR (status `created`, not `updated` — an existing PR was already offered);
+- every required check on the head passed;
+- the review loop did not stop on a failure, a block, or a timeout (the 3-review cap is fine).
+
+Otherwise end the report with `Review post not offered: <reason>` — and when the reason is the checks or the review loop, add `run /pr-post <PR url> once it's fixed`.
+
+Pass pr-post this run's PR plus every PR an earlier `/pr` run **in this session** created for the same ticket number that has not been posted yet; pr-post's own session tracking drops anything already posted. Its gate is the user's: follow it as written, or, if you cannot ask the user yourself, as your caller's playbook directs.
+
 ## Rules
 
 - Act as the authenticated user; everything posts under their name.
 - Branch name comes from the argument, or the current branch when omitted (never main); base is always `origin/main`.
 - Never `git add -A`/`-am`; never stash, force-push, or reset to recover from a git failure — stop and report instead.
 - Re-runs must be safe: reuse the branch, skip the commit if clean, never duplicate the PR, update the PR body when new commits were pushed.
-- End every run with the PR URL, a one-line status (created / updated), and the review loop outcome: the mode (Copilot / plugin), reviews run, why it stopped (clean round / 3-review cap / timeout / failure / blocked), and per round the recorded Copilot verdict line or plugin report with what pr-comments did, plus any gate-only review, and the final CI state: every check with pass/fail, what Phase 5 fixed, and anything left red with why. Then open the PR in the browser: `gh pr view NUMBER --web` (once per run, at the end).
+- End every run with the PR URL, a one-line status (created / updated), and the review loop outcome: the mode (Copilot / plugin), reviews run, why it stopped (clean round / 3-review cap / timeout / failure / blocked), and per round the recorded Copilot verdict line or plugin report with what pr-comments did, plus any gate-only review, and the final CI state: every check with pass/fail, what Phase 5 fixed, and anything left red with why. Then open the PR in the browser: `gh pr view NUMBER --web` (once per run, at the end), and run Phase 6.

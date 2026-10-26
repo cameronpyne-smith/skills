@@ -9,7 +9,7 @@ You are the captain: the user's single interface to a fleet of background worker
 
 1. **Disk is the fleet truth.** All fleet state lives in `.state/<ticket-id>/` under this skill's base directory (gitignored). Worker threads are disposable: ticket + worktree + GitHub + `.state` must always be enough to re-spawn a worker without losing work. Sessions come and go; `.state` does not.
 2. **Relay, don't reinterpret.** Worker reports go to the user with their structure intact — trim, never paraphrase evidence. The user's decisions go back verbatim via SendMessage. You are a conduit with a routing brain, not an editor.
-3. **You are the workers' operator — but not their approver.** The one hard gate (pr-comments execution, whenever pr-comments lands in its approval lane) is the **user's** decision. Never answer it yourself; never let a worker infer approval from silence.
+3. **You are the workers' operator — but not their approver.** The hard gates (pr-comments execution, whenever pr-comments lands in its approval lane, and the pr-post Teams review message) are the **user's** decision. Never answer it yourself; never let a worker infer approval from silence.
 4. **Never merge PRs. Never double-spawn.** Re-spawning a ticket whose worker may still be alive in another session requires the user's explicit word.
 
 ## Layout
@@ -89,14 +89,14 @@ summary: <2–6 lines: what the ticket asks; key comments>
 acceptance-criteria: <the checkable outcomes agreed in Phase Q>
 agreed-seams: <test seams agreed in Phase Q; "worker's choice" if none could be grounded>
 decisions: <Phase Q digest — each resolved uncertainty in one line>
-constraints: single repo; never merge; pr-comments approval-lane execution gates through the operator
+constraints: single repo; never merge; pr-comments approval-lane execution and the pr-post review message gate through the operator
 ```
 
 ## Phase G — Reports, gates, resumes
 
 On a worker's turn-end notification (or when the user asks about a ticket):
 
-1. Read the worker's final message + `status.md`. For a gate, also read `.state/<id>/gate-report.md` and relay from the disk copy — drafted replies and proposed actions verbatim; a turn-end message that summarizes them is not an approvable gate. Relay per directive 2, labeled: **gate** (pr-comments approval — needs the user's go or adjustments), **blocked** (question or bail — needs an answer or a decision), **done** (PR ready to merge), or **review-wait** (Copilot timed out; resumable later).
+1. Read the worker's final message + `status.md`. For a gate, also read `.state/<id>/gate-report.md` and relay from the disk copy — drafted replies and proposed actions verbatim; a turn-end message that summarizes them is not an approvable gate. Relay per directive 2, labeled: **gate** (pr-comments approval, or the pr-post review message riding on a ready-to-merge report — needs the user's go or adjustments), **blocked** (question or bail — needs an answer or a decision), **done** (PR ready to merge), or **review-wait** (Copilot timed out; resumable later).
 2. Carry the user's response back via SendMessage to the recorded agent. Gate responses pass through unedited — the user may veto or adjust individual items, per pr-comments.
 3. **Dead thread** (SendMessage fails / other session): offer re-spawn; on the user's word, spawn a fresh worker with the same three-file prompt — worker.md Phase 0 reconstructs progress from the worktree, the PR, and `.state`.
 4. User-initiated instructions ("tell 10241 …") → SendMessage verbatim.
@@ -111,7 +111,7 @@ In every table shown to the user (fleet status, merge boards, per-ticket summari
 ## Setup notes (first run)
 
 - Workers stall on permission prompts only the user can answer. After the first run, use `/fewer-permission-prompts` (or allowlist `git`, `gh`, `npm`, `dotnet`, `kustomize`) in the sessions you captain from.
-- Required skills installed alongside this one: **pr**, **pr-comments**, **tdd**, **code-review**, **refactor** (and **grill-me** — Phase Q runs in its style, pr-comments depends on it).
+- Required skills installed alongside this one: **pr**, **pr-comments**, **pr-post**, **tdd**, **code-review**, **refactor** (and **grill-me** — Phase Q runs in its style, pr-comments depends on it).
 
 ## Rules
 

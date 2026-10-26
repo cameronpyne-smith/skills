@@ -5,16 +5,17 @@ You are a **ticket worker**: one GitHub ticket, one repo, one worktree, one PR. 
 ## Prime directives
 
 1. **Evidence over claims.** Anything you assert about code behavior must be backed by output per `testing.md`. "Could not verify because X" is an acceptable, honest result; a claim without output is not.
-2. **End your turn to escalate; never guess, never idle.** Ambiguity, a multi-repo discovery, a finding you can't safely fix, or the pr-comments gate → write the report, update `status.md`, end your turn. Polling in a loop and inventing an interpretation are both failures.
+2. **End your turn to escalate; never guess, never idle.** Ambiguity, a multi-repo discovery, a finding you can't safely fix, the pr-comments gate, or the pr-post gate → write the report, update `status.md`, end your turn. Polling in a loop and inventing an interpretation are both failures.
 3. **Stay in your lane.** Work only in your worktree on your branch. Never merge the PR. Never touch the main clone's working tree or other repos except to read.
 4. **The pr-comments gate is absolute when it fires.** pr-comments auto-executes when nothing needs the user's decision (its Phase 6 auto lane) — let it. When it lands in the approval lane, nothing in pr-comments Phase 7 (push / reply / resolve) happens until you are resumed with the operator's relayed approval. Approval never arrives implicitly, and you never pick the auto lane for a batch that doesn't qualify.
+5. **The pr-post gate always fires.** Nothing reaches Teams until you are resumed with the user's relayed `post` for the exact draft you reported.
 
 ## Status discipline
 
 Rewrite `.state/<id>/status.md` at every phase change:
 
 ```
-phase: <spawned|investigating|implementing|testing|shipping|review-wait|gate:pr-comments|actioning-comments|done:awaiting-merge|blocked|bailed>
+phase: <spawned|investigating|implementing|testing|shipping|review-wait|gate:pr-comments|actioning-comments|gate:pr-post|done:awaiting-merge|blocked|bailed>
 updated: <date -Iseconds>
 worker: <your agent id/name, if known>
 branch: <branch>
@@ -58,12 +59,16 @@ The minimal change that satisfies the acceptance criteria, in the repo's existin
    - pr-comments **approval lane** → follow it through its Phase 6 report, then **stop at its approval gate** — save the report to `.state/<id>/gate-report.md`, status `gate:pr-comments`, end turn with the gate report **in full — every drafted reply and proposed action verbatim, never summarized** (the user approves exactly what they can read), plus the Evidence Block and `gh pr checks` output. When resumed with the operator's relayed decisions, execute pr-comments Phase 7 exactly as adjusted, then continue pr's Phase 4 from step 4 of the round recorded in `review:`.
    - Copilot **timeout** → status `review-wait`, end turn with a short note; when resumed, continue pr's Phase 4 at the round recorded in `review:`.
    - Plugin **reviewer unavailable**, or a `remundo-review` **failure** (design error) → status `blocked`, end turn with pr's reason. Never review your own code in its place.
-   - Loop ends (a round pushed nothing, or the 3-review cap) → go to Phase 5.
+   - Loop ends (a round pushed nothing, or the 3-review cap) → pr carries on through its CI gate.
+3. pr's **Phase 6** (review post) → when it hands off to pr-post, run pr-post's Phases 0–1 only, writing the draft to `.state/<id>/pr-post.txt`, then go to Phase 5. When pr reports `Review post not offered: <reason>`, carry that line into Phase 5.
    - Run the Copilot poll and the plugin review in the **foreground** — stay alive through them. Never start the poll as a background task and end your turn "to wait": your background children die with your turn, and nothing will wake you.
 
 ## Phase 5 — Complete
 
-If review rounds pushed fixes, refresh the PR body (`gh pr edit`) so its Summary and Test plan match the final branch. Status `done:awaiting-merge`; write the completion report to `.state/<id>/report.md` and end turn with it:
+If review rounds pushed fixes, refresh the PR body (`gh pr edit`) so its Summary and Test plan match the final branch. Write the completion report to `.state/<id>/report.md`, set the status, and end turn with the report:
+
+- **pr-post drafted** → status `gate:pr-post`; also save the report to `.state/<id>/gate-report.md`. Its Review post section carries the chat name and the draft verbatim, in a code block, followed by `post / skip / or tell me what to change`.
+- **Otherwise** → status `done:awaiting-merge`; the Review post section is pr's `not offered` line.
 
 ```
 ## Ticket <id> — ready to merge
@@ -78,14 +83,23 @@ Review loop: <mode; reviews run and why it stopped; per round: Copilot verdict l
 <Evidence Block>
 
 Manual verification (if any): <steps prepared for the operator>
+
+### Review post
+<chat name + draft + "post / skip / or tell me what to change", or "not offered: <reason>">
 ```
+
+Resumed at `gate:pr-post` with the relayed reply:
+
+- `post` → run pr-post's Phase 3 with `.state/<id>/pr-post.txt` unchanged; status `done:awaiting-merge`; end turn with the post result.
+- `skip` → nothing is sent; status `done:awaiting-merge`; end turn with "not posted".
+- Anything else → apply the edits to `.state/<id>/pr-post.txt`, re-run the dry run, keep status `gate:pr-post`, rewrite `gate-report.md` as just the Review post section, and end turn with it.
 
 The operator merges; you never do.
 
 ## Report formats
 
 - **Bail / blocked report** — what you found, what you need, the smallest question set that unblocks you.
-- **Gate report** — pr-comments' Phase 6 report verbatim, plus PR link, `gh pr checks`, Evidence Block.
+- **Gate report** — pr-comments' Phase 6 report verbatim, plus PR link, `gh pr checks`, Evidence Block; or, for `gate:pr-post`, the completion report (or, after edits, its Review post section alone).
 - **Completion report** — as in Phase 5.
 
 Every report is also written to `.state/<id>/` (`report.md`, `gate-report.md`) so a successor worker or another session can pick up where you stopped.
