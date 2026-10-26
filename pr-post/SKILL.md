@@ -40,7 +40,7 @@ Write the draft to a temp file (outside any repo) and run the dry run, which als
 pwsh -NoProfile -File <this skill's dir>/post.ps1 -MessageFile <file> [-Ticket <n>] -DryRun
 ```
 
-It prints `Chat: <name>` and the HTML. **No chat configured** → stop and tell the user to run `pwsh -NoProfile -File <this skill's dir>/post.ps1 -Setup` themselves (it signs in through the browser and lists their group chats; in Claude Code, prefix it with `!`), then the same with `-Topic "<chat name>"`; do not post.
+It prints `Chat: <name>` and the HTML. **No chat configured** → stop and tell the user to run `pwsh -NoProfile -File <this skill's dir>/post.ps1 -Setup -ChatLink "<link to any message in the review chat>" -Name "<chat name>"` themselves (it saves the chat and signs in through the browser; in Claude Code, prefix it with `!`); do not post.
 
 ## Phase 2 — Gate
 

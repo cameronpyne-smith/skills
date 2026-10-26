@@ -13,8 +13,11 @@ param(
     [Parameter(ParameterSetName = 'Setup', Mandatory)]
     [switch] $Setup,
 
-    [Parameter(ParameterSetName = 'Setup')]
-    [string] $Topic
+    [Parameter(ParameterSetName = 'Setup', Mandatory)]
+    [string] $ChatLink,
+
+    [Parameter(ParameterSetName = 'Setup', Mandatory)]
+    [string] $Name
 )
 
 $ErrorActionPreference = 'Stop'
@@ -49,40 +52,22 @@ function ConvertTo-MessageHtml([string[]] $Lines, [string] $Ticket) {
 }
 
 if ($Setup) {
-    Connect-Graph @('ChatMessage.Send', 'Chat.ReadBasic')
-    $chats = @()
-    $uri = 'https://graph.microsoft.com/v1.0/me/chats?$top=50'
-    while ($uri) {
-        $page = Invoke-MgGraphRequest -Method GET -Uri $uri
-        $chats += $page.value
-        $uri = $page.'@odata.nextLink'
-    }
-    $named = $chats | Where-Object { $_.chatType -eq 'group' -and $_.topic } | Sort-Object { $_.lastUpdatedDateTime } -Descending
-
-    if (-not $Topic) {
-        Write-Host 'Group chats (most recently active first). Re-run with -Topic "<name>" to choose one:'
-        $named | ForEach-Object { Write-Host "  $($_.topic)" }
-        return
-    }
-
-    $candidates = @($named | Where-Object { $_.topic -eq $Topic })
-    if ($candidates.Count -eq 0) {
-        $candidates = @($named | Where-Object { $_.topic -like "*$Topic*" })
-    }
-    if ($candidates.Count -ne 1) {
-        Write-Host "$($candidates.Count) group chats match '$Topic':"
-        $candidates | ForEach-Object { Write-Host "  $($_.topic)" }
-        throw 'Choose exactly one chat with a more specific -Topic.'
+    $chatId = [regex]::Match([uri]::UnescapeDataString($ChatLink), '19:[^/?#\s]+@thread\.v2').Value
+    if (-not $chatId) {
+        throw 'No group chat id (19:...@thread.v2) found in -ChatLink. In Teams, copy the link to any message in the chat.'
     }
 
     New-Item -ItemType Directory -Force (Split-Path $configPath) | Out-Null
-    @{ chatId = $candidates[0].id; topic = $candidates[0].topic } | ConvertTo-Json | Set-Content -Path $configPath -Encoding utf8
-    Write-Host "Saved '$($candidates[0].topic)' to $configPath"
+    @{ chatId = $chatId; topic = $Name } | ConvertTo-Json | Set-Content -Path $configPath -Encoding utf8
+    Write-Host "Saved '$Name' ($chatId) to $configPath"
+
+    Connect-Graph @('ChatMessage.Send')
+    Write-Host 'Signed in with ChatMessage.Send.'
     return
 }
 
 if (-not (Test-Path $configPath)) {
-    throw "No chat configured. Run: pwsh -NoProfile -File `"$PSCommandPath`" -Setup"
+    throw "No chat configured. Run: pwsh -NoProfile -File `"$PSCommandPath`" -Setup -ChatLink <link to a message in the chat> -Name <chat name>"
 }
 $config = Get-Content -Raw $configPath | ConvertFrom-Json
 
