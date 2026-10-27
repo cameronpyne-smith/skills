@@ -1,6 +1,6 @@
 ---
 name: pr
-description: Ship the current work as a pull request — branch off latest main with the given branch name, commit everything, push, create the PR, then loop review → pr-comments skill (GitHub Copilot, or the remundo-sdlc plugin's review in the repos it covers), reviewing again after every round that pushed fixes, up to 3 reviews, then wait for CI and fix any check the branch broke, and finally offer the Teams review-request post via the pr-post skill. Use when the user wants to turn the working tree into a PR. Invoke with /pr <branch-name>, e.g. /pr fix-token, or just /pr to ship the branch you are already on.
+description: Ship the current work as a pull request — branch off latest main with the given branch name, commit everything, push, create the PR, then loop review → pr-comments skill (GitHub Copilot, or the remundo-sdlc plugin's review in the repos it covers), reviewing again after every round that pushed fixes, up to 3 reviews, then wait for CI and fix any check the branch broke, turn on auto-merge where the repo requires an approval, and finally offer the Teams review-request post via the pr-post skill. Use when the user wants to turn the working tree into a PR. Invoke with /pr <branch-name>, e.g. /pr fix-token, or just /pr to ship the branch you are already on.
 ---
 
 You ship the working tree as a pull request: branch, commit, push, create the PR, then run a review loop — GitHub Copilot reviews and the **`pr-comments` skill** actions it (this skill depends on it; they ship together), or, in repos the `remundo-sdlc` Claude Code plugin covers, the plugin's review reviews and fixes and pr-comments handles everyone else's comments — and any fixes pushed get re-reviewed. You act through the GitHub CLI (`gh`) and `git`, posting **as the authenticated user**.
@@ -123,7 +123,7 @@ Each round:
 
 1. Note the head (`BEFORE=$(git rev-parse HEAD)`), then invoke **`/remundo-sdlc:review NUMBER`** in the foreground and let it finish. If it cannot run, or cannot start its reviewer (it refuses to review in your own context), stop and report `blocked: plugin reviewer unavailable`. Never review the code yourself instead.
 2. **Read the outcome.** Record its chat report (fixed / not a defect / question / owner's call) for the end report, then read the head status:
-   - `failure` → a finding showed a design error. Stop and report the reason; skip Phase 5.
+   - `failure` → a finding showed a design error. Stop and report the reason; skip Phase 5 except its step 6 (auto-merge).
    - No status → the run did not finish. Stop and report.
 3. **Action everyone else.** Invoke **pr-comments** for human reviewers and other bots. Its rules apply: auto lane or approval gate, as in Copilot mode. It skips the plugin's findings on its own, because they are posted from your account.
 4. **Decide.** `git fetch origin`, then compare `origin/BRANCH` with `BEFORE` (for a review 1 taken from an existing status, the commit that status is on):
@@ -133,7 +133,7 @@ Each round:
 
 ## Phase 5 — CI gate
 
-Runs after the review loop ends for any reason except a git or pr-comments failure. At most **3 fix attempts**.
+Runs after the review loop ends for any reason except a git or pr-comments failure, which skip to step 6. At most **3 fix attempts**.
 
 1. **Wait for checks on the current head** — `gh pr checks NUMBER --watch --fail-fast=false`, capped at 20 minutes. Checks can take a moment to register after a push ("no checks reported"); retry that for up to 2 minutes before concluding.
 2. **All pass** → done; report the check list.
@@ -143,6 +143,18 @@ Runs after the review loop ends for any reason except a git or pr-comments failu
    - **Only an override would clear it** — a label such as `allow-new-warnings`, skipping a test, raising a threshold → **never apply it yourself.** Present the root-cause fix and the override as options and wait for the user.
 4. **Re-review.** If this phase pushed commits and fewer than 3 reviews have run, return to Phase 4 for another round, then come back here. If the cap is reached, report that the CI fixes have not been reviewed. In plugin mode, still run Phase 4's plugin steps 1–2 once on the new head, because the merge requires `remundo-review` on it; report that review as gate-only.
 5. **3 attempts spent and still red** → stop and report each failing check with its log excerpt.
+6. **Auto-merge.** Runs as the last step of this phase, whatever ended it. Never earlier in the run: until the review loop and checks are done, auto-merge could land unreviewed code. Never merge directly.
+   - **Gate green** (every required check on the head passed, and the review loop did not stop on a failure, a block or a timeout) → turn auto-merge on where it can be, so the PR merges itself once a person approves:
+     ```
+     gh pr view NUMBER --json isDraft,reviewDecision,autoMergeRequest
+     gh api repos/OWNER/REPO --jq '{allow_auto_merge, allow_squash_merge, allow_merge_commit, allow_rebase_merge}'
+     gh api repos/OWNER/REPO/rules/branches/main --jq '.[] | select(.type == "pull_request") | .parameters.allowed_merge_methods'
+     ```
+     - Already on (`autoMergeRequest` set) → leave it.
+     - Skip, with the reason, when the PR is a draft, `allow_auto_merge` is false, or `reviewDecision` is neither `REVIEW_REQUIRED` nor `CHANGES_REQUESTED`. Empty means main requires no approval and `APPROVED` means it already has one; either way auto-merge would merge at once, without a person deciding.
+     - Method: the first of squash, merge, rebase that the repo allows and, when the `pull_request` rule lists `allowed_merge_methods`, that list includes too. None → skip, with the reason.
+     - `gh pr merge NUMBER --auto --<method>`. A failure is reported verbatim; never retry with another method.
+   - **Gate not green** and auto-merge is on → `gh pr merge NUMBER --disable-auto`, so a person's approval cannot land a head that failed the gate; report that it was turned off.
 
 ## Phase 6 — Review post
 
@@ -162,4 +174,4 @@ Pass pr-post this run's PR plus every PR an earlier `/pr` run **in this session*
 - Branch name comes from the argument, or the current branch when omitted (never main); base is always `origin/main`.
 - Never `git add -A`/`-am`; never stash, force-push, or reset to recover from a git failure — stop and report instead.
 - Re-runs must be safe: reuse the branch, skip the commit if clean, never duplicate the PR, update the PR body when new commits were pushed.
-- End every run with the PR URL, a one-line status (created / updated), and the review loop outcome: the mode (Copilot / plugin), reviews run, why it stopped (clean round / 3-review cap / timeout / failure / blocked), and per round the recorded Copilot verdict line or plugin report with what pr-comments did, plus any gate-only review, and the final CI state: every check with pass/fail, what Phase 5 fixed, and anything left red with why. Then open the PR in the browser: `gh pr view NUMBER --web` (once per run, at the end), and run Phase 6.
+- End every run with the PR URL, a one-line status (created / updated), and the review loop outcome: the mode (Copilot / plugin), reviews run, why it stopped (clean round / 3-review cap / timeout / failure / blocked), and per round the recorded Copilot verdict line or plugin report with what pr-comments did, plus any gate-only review, and the final CI state: every check with pass/fail, what Phase 5 fixed, and anything left red with why; then the auto-merge state (enabled with its method / already on / skipped: reason / turned off). Then open the PR in the browser: `gh pr view NUMBER --web` (once per run, at the end), and run Phase 6.
