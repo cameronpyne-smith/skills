@@ -30,34 +30,56 @@ function Connect-Graph([string[]] $Scopes) {
     Connect-MgGraph -Scopes $Scopes -NoWelcome
 }
 
-function Get-LinkLabel([string] $Url) {
-    $github = [regex]::Match($Url, '^https://github\.com/[^/]+/([^/?#]+)(?:/(?:pull|issues)/(\d+))?')
+function Get-LinkRepo([string] $Url) {
+    $github = [regex]::Match($Url, '^https://github\.com/[^/]+/([^/?#]+)')
     if (-not $github.Success) { return $Url }
-    $repo = $github.Groups[1].Value -replace '^Remundo\.(?=.)', ''
-    if ($github.Groups[2].Success) { "$repo #$($github.Groups[2].Value)" } else { $repo }
+    $github.Groups[1].Value -replace '^Remundo\.(?=.)', ''
+}
+
+function Get-LinkLabel([string] $Url, [bool] $WithNumber) {
+    $repo = Get-LinkRepo $Url
+    $number = [regex]::Match($Url, '^https://github\.com/[^/]+/[^/?#]+/(?:pull|issues)/(\d+)')
+    if ($WithNumber -and $number.Success) { "$repo #$($number.Groups[1].Value)" } else { $repo }
+}
+
+function Get-SizeHtml([string] $Added, [string] $Deleted) {
+    "&nbsp;&nbsp;<span style=""color:#1a7f37"">+$Added</span> <span style=""color:#cf222e"">$([char]0x2212)$Deleted</span>"
 }
 
 function ConvertTo-MessageHtml([string[]] $Lines) {
     $html = [System.Text.StringBuilder]::new()
-    $urlPattern = '^https?://\S+$'
+    $urlPattern = '^(https?://\S+)(?: \+(\d+) -(\d+))?$'
     $inList = $false
     for ($i = 0; $i -lt $Lines.Count; $i++) {
         $line = $Lines[$i]
-        $isUrl = $line -match $urlPattern
+        $link = [regex]::Match($line, $urlPattern)
         $heading = [regex]::Match($line, '^(\d{4,}) - ')
         if ($heading.Success) {
             $number = $heading.Groups[1].Value
             $rest = [System.Net.WebUtility]::HtmlEncode($line.Substring($heading.Length))
-            [void]$html.Append("<p><b><a href=""$issueBase$number"">#$number</a> $rest</b></p>")
+            [void]$html.Append("<p><a href=""$issueBase$number"">#$number</a><br><i>$rest</i></p>")
         }
-        elseif ($isUrl) {
-            [void]$html.Append($(if ($inList) { '<br>' } else { '<p>' }))
-            $inList = $true
+        elseif ($link.Success) {
+            if (-not $inList) {
+                [void]$html.Append('<p>')
+                $inList = $true
+                $runRepos = for ($j = $i; $j -lt $Lines.Count; $j++) {
+                    $runLink = [regex]::Match($Lines[$j], $urlPattern)
+                    if (-not $runLink.Success) { break }
+                    Get-LinkRepo $runLink.Groups[1].Value
+                }
+                $repeated = @($runRepos | Group-Object | Where-Object Count -gt 1 | ForEach-Object Name)
+            }
+            else {
+                [void]$html.Append('<br>')
+            }
             $isLast = $i + 1 -ge $Lines.Count -or $Lines[$i + 1] -notmatch $urlPattern
             $branch = [string][char]$(if ($isLast) { 0x2514 } else { 0x251C }) + [char]0x2500
-            $url = [System.Net.WebUtility]::HtmlEncode($line)
-            $label = [System.Net.WebUtility]::HtmlEncode((Get-LinkLabel $line))
-            [void]$html.Append("$branch <a href=""$url"">$label</a>")
+            $target = $link.Groups[1].Value
+            $url = [System.Net.WebUtility]::HtmlEncode($target)
+            $label = [System.Net.WebUtility]::HtmlEncode((Get-LinkLabel $target ($repeated -contains (Get-LinkRepo $target))))
+            $size = if ($link.Groups[2].Success) { Get-SizeHtml $link.Groups[2].Value $link.Groups[3].Value } else { '' }
+            [void]$html.Append("$branch <a href=""$url"">$label</a>$size")
             if ($isLast) {
                 [void]$html.Append('</p>')
                 $inList = $false
