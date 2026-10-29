@@ -19,7 +19,7 @@ This skill works in any agent that has `gh`, `pwsh` and a way to write a file. D
 2. For each PR: `gh pr view <pr> --json url,title,headRefName,state,isDraft`. Drop merged or closed PRs with a note. A draft PR stays, but say so beside the draft.
 3. **Already posted** — drop any PR this session already posted through this skill (directly or via the pr skill), and say which were dropped. PRs whose draft was skipped are not posted, so they stay.
 4. **Ticket** — per PR, the leading 4+ digit number of `headRefName` (the pr skill's rule); none → no ticket.
-5. **Group by ticket.** One message per ticket; PRs with no ticket form one ticketless group. Each group gets its own draft and gate, in turn.
+5. **Group by ticket.** One message per ticket; PRs with no ticket form one ticketless group. Each group gets its own draft and gate, in turn. When the user asks for several tickets in one message, draft the groups one after another in a single message, separated by a blank line, under one gate.
 
 ## Phase 1 — Draft
 
@@ -37,7 +37,7 @@ This skill works in any agent that has `gh`, `pwsh` and a way to write a file. D
 Write the draft to a temp file (outside any repo) and run the dry run, which also proves the chat is configured:
 
 ```
-pwsh -NoProfile -File <this skill's dir>/post.ps1 -MessageFile <file> [-Ticket <n>] -DryRun
+pwsh -NoProfile -File <this skill's dir>/post.ps1 -MessageFile <file> -DryRun
 ```
 
 It prints `Chat: <name>` and the HTML. **No chat configured** → stop and tell the user to run `pwsh -NoProfile -File <this skill's dir>/post.ps1 -Setup -ChatLink "<link to any message in the review chat>" -Name "<chat name>"` themselves (it saves the chat and signs in through the browser; in Claude Code, prefix it with `!`); do not post.
@@ -61,10 +61,10 @@ Then wait for the reply.
 ## Phase 3 — Post
 
 ```
-pwsh -NoProfile -File <this skill's dir>/post.ps1 -MessageFile <file> [-Ticket <n>]
+pwsh -NoProfile -File <this skill's dir>/post.ps1 -MessageFile <file>
 ```
 
-Pass `-Ticket` exactly when the first line starts with `<ticket> - `, so the number becomes the issue link. The script links bare URL lines and HTML-escapes everything else; it signs in silently from the token cache, or opens a browser sign-in if the cache is cold.
+Every line that starts with `<ticket> - ` (4+ digits) gets the number linked to its issue, so a message with several ticket groups links each one. The script links bare URL lines and HTML-escapes everything else; it signs in silently from the token cache, or opens a browser sign-in if the cache is cold.
 
 - **Success** → report the chat name and the PRs posted; remember them as posted for Phase 0.3.
 - **Failure** → report the error verbatim and stop. A consent error (`AADSTS65001` or similar) means the tenant blocks user consent for Microsoft Graph PowerShell; tell the user an admin must consent to `ChatMessage.Send`, or that they need their own app registration.

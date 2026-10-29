@@ -4,10 +4,6 @@ param(
     [string] $MessageFile,
 
     [Parameter(ParameterSetName = 'Post')]
-    [ValidatePattern('^\d+$')]
-    [string] $Ticket,
-
-    [Parameter(ParameterSetName = 'Post')]
     [switch] $DryRun,
 
     [Parameter(ParameterSetName = 'Setup', Mandatory)]
@@ -34,11 +30,12 @@ function Connect-Graph([string[]] $Scopes) {
     Connect-MgGraph -Scopes $Scopes -NoWelcome
 }
 
-function ConvertTo-MessageHtml([string[]] $Lines, [string] $Ticket) {
-    $paragraphs = for ($i = 0; $i -lt $Lines.Count; $i++) {
-        $line = $Lines[$i]
-        if ($i -eq 0 -and $Ticket -and $line.StartsWith("$Ticket - ")) {
-            "<a href=""$issueBase$Ticket"">$Ticket</a>" + [System.Net.WebUtility]::HtmlEncode($line.Substring($Ticket.Length))
+function ConvertTo-MessageHtml([string[]] $Lines) {
+    $paragraphs = foreach ($line in $Lines) {
+        $heading = [regex]::Match($line, '^(\d{4,}) - ')
+        if ($heading.Success) {
+            $number = $heading.Groups[1].Value
+            "<a href=""$issueBase$number"">$number</a>" + [System.Net.WebUtility]::HtmlEncode($line.Substring($number.Length))
         }
         elseif ($line -match '^https?://\S+$') {
             $url = [System.Net.WebUtility]::HtmlEncode($line)
@@ -74,7 +71,7 @@ $config = Get-Content -Raw $configPath | ConvertFrom-Json
 $lines = @(((Get-Content -Raw $MessageFile) -replace '\s+$', '') -split '\r?\n')
 if (-not $lines[0]) { throw "$MessageFile is empty." }
 
-$html = ConvertTo-MessageHtml $lines $Ticket
+$html = ConvertTo-MessageHtml $lines
 
 if ($DryRun) {
     Write-Host "Chat: $($config.topic)"
