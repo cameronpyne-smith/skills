@@ -39,13 +39,11 @@ function Get-LinkLabel([string] $Url) {
 
 function ConvertTo-MessageHtml([string[]] $Lines) {
     $html = [System.Text.StringBuilder]::new()
+    $urlPattern = '^https?://\S+$'
     $inList = $false
-    foreach ($line in $Lines) {
-        $isUrl = $line -match '^https?://\S+$'
-        if ($inList -and -not $isUrl) {
-            [void]$html.Append('</ul>')
-            $inList = $false
-        }
+    for ($i = 0; $i -lt $Lines.Count; $i++) {
+        $line = $Lines[$i]
+        $isUrl = $line -match $urlPattern
         $heading = [regex]::Match($line, '^(\d{4,}) - ')
         if ($heading.Success) {
             $number = $heading.Groups[1].Value
@@ -53,19 +51,22 @@ function ConvertTo-MessageHtml([string[]] $Lines) {
             [void]$html.Append("<p><b><a href=""$issueBase$number"">#$number</a> $rest</b></p>")
         }
         elseif ($isUrl) {
-            if (-not $inList) {
-                [void]$html.Append('<ul>')
-                $inList = $true
-            }
+            [void]$html.Append($(if ($inList) { '<br>' } else { '<p>' }))
+            $inList = $true
+            $isLast = $i + 1 -ge $Lines.Count -or $Lines[$i + 1] -notmatch $urlPattern
+            $branch = [string][char]$(if ($isLast) { 0x2514 } else { 0x251C }) + [char]0x2500
             $url = [System.Net.WebUtility]::HtmlEncode($line)
             $label = [System.Net.WebUtility]::HtmlEncode((Get-LinkLabel $line))
-            [void]$html.Append("<li><a href=""$url"">$label</a></li>")
+            [void]$html.Append("$branch <a href=""$url"">$label</a>")
+            if ($isLast) {
+                [void]$html.Append('</p>')
+                $inList = $false
+            }
         }
         elseif ($line) {
             [void]$html.Append("<p>$([System.Net.WebUtility]::HtmlEncode($line))</p>")
         }
     }
-    if ($inList) { [void]$html.Append('</ul>') }
     $html.ToString()
 }
 
