@@ -30,22 +30,43 @@ function Connect-Graph([string[]] $Scopes) {
     Connect-MgGraph -Scopes $Scopes -NoWelcome
 }
 
+function Get-LinkLabel([string] $Url) {
+    $github = [regex]::Match($Url, '^https://github\.com/[^/]+/([^/?#]+)(?:/(?:pull|issues)/(\d+))?')
+    if (-not $github.Success) { return $Url }
+    $repo = $github.Groups[1].Value -replace '^Remundo\.(?=.)', ''
+    if ($github.Groups[2].Success) { "$repo #$($github.Groups[2].Value)" } else { $repo }
+}
+
 function ConvertTo-MessageHtml([string[]] $Lines) {
-    $paragraphs = foreach ($line in $Lines) {
+    $html = [System.Text.StringBuilder]::new()
+    $inList = $false
+    foreach ($line in $Lines) {
+        $isUrl = $line -match '^https?://\S+$'
+        if ($inList -and -not $isUrl) {
+            [void]$html.Append('</ul>')
+            $inList = $false
+        }
         $heading = [regex]::Match($line, '^(\d{4,}) - ')
         if ($heading.Success) {
             $number = $heading.Groups[1].Value
-            "<a href=""$issueBase$number"">$number</a>" + [System.Net.WebUtility]::HtmlEncode($line.Substring($number.Length))
+            $rest = [System.Net.WebUtility]::HtmlEncode($line.Substring($heading.Length))
+            [void]$html.Append("<p><b><a href=""$issueBase$number"">#$number</a> $rest</b></p>")
         }
-        elseif ($line -match '^https?://\S+$') {
+        elseif ($isUrl) {
+            if (-not $inList) {
+                [void]$html.Append('<ul>')
+                $inList = $true
+            }
             $url = [System.Net.WebUtility]::HtmlEncode($line)
-            "<a href=""$url"">$url</a>"
+            $label = [System.Net.WebUtility]::HtmlEncode((Get-LinkLabel $line))
+            [void]$html.Append("<li><a href=""$url"">$label</a></li>")
         }
-        else {
-            [System.Net.WebUtility]::HtmlEncode($line)
+        elseif ($line) {
+            [void]$html.Append("<p>$([System.Net.WebUtility]::HtmlEncode($line))</p>")
         }
     }
-    ($paragraphs | ForEach-Object { "<p>$_</p>" }) -join ''
+    if ($inList) { [void]$html.Append('</ul>') }
+    $html.ToString()
 }
 
 if ($Setup) {

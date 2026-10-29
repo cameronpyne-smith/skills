@@ -64,7 +64,7 @@ Then wait for the reply.
 pwsh -NoProfile -File <this skill's dir>/post.ps1 -MessageFile <file>
 ```
 
-Every line that starts with `<ticket> - ` (4+ digits) gets the number linked to its issue, so a message with several ticket groups links each one. The script links bare URL lines and HTML-escapes everything else; it signs in silently from the token cache, or opens a browser sign-in if the cache is cold.
+The script renders the plain-text draft: each `<ticket> - <sentence>` line (4+ digits) becomes a bold heading `#<ticket> <sentence>` with the number linked to its issue; each run of URL lines becomes a bulleted list, a GitHub link labelled by its repo without the `Remundo.` prefix, plus ` #<n>` for a pull request or issue (e.g. `Synchroniser #1523`, `docs-ext`), and any other URL shown in full; blank lines are dropped and everything else is HTML-escaped. It signs in silently from the token cache, or opens a browser sign-in if the cache is cold.
 
 - **Success** → report the chat name and the PRs posted; remember them as posted for Phase 0.3.
 - **Failure** → report the error verbatim and stop. A consent error (`AADSTS65001` or similar) means the tenant blocks user consent for Microsoft Graph PowerShell; tell the user an admin must consent to `ChatMessage.Send`, or that they need their own app registration.
