@@ -42,13 +42,20 @@ function Get-LinkLabel([string] $Url, [bool] $WithNumber) {
     if ($WithNumber -and $number.Success) { "$repo #$($number.Groups[1].Value)" } else { $repo }
 }
 
-function Get-SizeHtml([string] $Added, [string] $Deleted) {
-    "&nbsp;&nbsp;<span style=""color:#1a7f37"">+$Added</span> <span style=""color:#cf222e"">$([char]0x2212)$Deleted</span>"
+function Get-SizeHtml([string] $Url) {
+    if ($Url -notmatch '^https://github\.com/[^/]+/[^/?#]+/pull/\d+') { return '' }
+    $json = gh pr view $Url --json additions,deletions 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "No line counts for $Url (gh pr view failed)"
+        return ''
+    }
+    $size = $json | ConvertFrom-Json
+    "&nbsp;&nbsp;<span style=""color:#1a7f37"">+$($size.additions)</span> <span style=""color:#cf222e"">$([char]0x2212)$($size.deletions)</span>"
 }
 
 function ConvertTo-MessageHtml([string[]] $Lines) {
     $html = [System.Text.StringBuilder]::new()
-    $urlPattern = '^(https?://\S+)(?: \+(\d+) -(\d+))?$'
+    $urlPattern = '^(https?://\S+)(?: \+\d+ -\d+)?$'
     $inList = $false
     for ($i = 0; $i -lt $Lines.Count; $i++) {
         $line = $Lines[$i]
@@ -78,7 +85,7 @@ function ConvertTo-MessageHtml([string[]] $Lines) {
             $target = $link.Groups[1].Value
             $url = [System.Net.WebUtility]::HtmlEncode($target)
             $label = [System.Net.WebUtility]::HtmlEncode((Get-LinkLabel $target ($repeated -contains (Get-LinkRepo $target))))
-            $size = if ($link.Groups[2].Success) { Get-SizeHtml $link.Groups[2].Value $link.Groups[3].Value } else { '' }
+            $size = Get-SizeHtml $target
             [void]$html.Append("$branch <a href=""$url"">$label</a>$size")
             if ($isLast) {
                 [void]$html.Append('</p>')
